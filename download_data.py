@@ -1,42 +1,7 @@
 import os
 import zipfile
-import requests
 from tqdm import tqdm
-
-def download_file_from_google_drive(id, destination):
-    URL = "https://docs.google.com/uc?export=download"
-
-    session = requests.Session()
-    response = session.get(URL, params={'id': id}, stream=True)
-    token = get_confirm_token(response)
-
-    if token:
-        params = {'id': id, 'confirm': token}
-        response = session.get(URL, params=params, stream=True)
-
-    save_response_content(response, destination)
-
-def get_confirm_token(response):
-    for key, value in response.cookies.items():
-        if key.startswith('download_warning'):
-            return value
-    return None
-
-def save_response_content(response, destination):
-    CHUNK_SIZE = 32768
-    total = int(response.headers.get('content-length', 0))
-    with open(destination, "wb") as f, tqdm(
-        desc=f"Downloading {os.path.basename(destination)}",
-        total=total,
-        unit='B',
-        unit_scale=True,
-        unit_divisor=1024,
-        leave=True
-    ) as pbar:
-        for chunk in response.iter_content(CHUNK_SIZE):
-            if chunk:
-                f.write(chunk)
-                pbar.update(len(chunk))
+import gdown
 
 def unzip_file(zip_path, extract_to):
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
@@ -63,7 +28,8 @@ if __name__ == "__main__":
     for file_id, filename in files:
         zip_path = os.path.join(download_dir, filename)
         print(f"Downloading {filename}...")
-        download_file_from_google_drive(file_id, zip_path)
+        url = f"https://drive.google.com/uc?id={file_id}"
+        gdown.download(url, zip_path, quiet=False)
         print(f"Extracting {filename}...")
         unzip_file(zip_path, extract_dir)
         print(f"Done with {filename}.")
