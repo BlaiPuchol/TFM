@@ -2,6 +2,7 @@ import os
 import zipfile
 from tqdm import tqdm
 import gdown
+import argparse
 
 def unzip_file(zip_path, extract_to):
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
@@ -12,6 +13,11 @@ def unzip_file(zip_path, extract_to):
                 pbar.update(1)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Download and extract datasets from Google Drive.")
+    parser.add_argument("--download_dir", type=str, default="downloads", help="Directory to save downloaded zip files.")
+    parser.add_argument("--extract_dir", type=str, default="extracted", help="Directory to extract files to.")
+    args = parser.parse_args()
+
     # List of (Google Drive file id, output filename)
     files = [
         ("1YmPcGZOinxqUl-ggotYPLtUHNnnUJnuW", "de-en-images.zip"),
@@ -20,8 +26,8 @@ if __name__ == "__main__":
         ("1H32hzLtXbyLMeKeBUgDDnHzvULNeSzlN", "fr-en.zip"),
     ]
 
-    download_dir = "downloads"
-    extract_dir = "extracted"
+    download_dir = args.download_dir if args.download_dir else "downloads"
+    extract_dir = args.extract_dir if args.extract_dir else "extracted"
     os.makedirs(download_dir, exist_ok=True)
     os.makedirs(extract_dir, exist_ok=True)
 
