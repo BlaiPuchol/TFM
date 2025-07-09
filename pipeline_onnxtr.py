@@ -30,8 +30,9 @@ from sacrebleu.metrics.ter import TER
 from mt_evaluation import MTEvaluation
 
 # Makea list of the number of images to evaluate
-def get_image_numbers(n, file_list):
-    shuffle(file_list)
+def get_image_numbers(n, file_list, shuf=False):
+    if shuf:
+        shuffle(file_list)
     image_numbers = []
     for i, filename in enumerate(file_list):
         if i >= n:
@@ -59,10 +60,12 @@ if __name__ == "__main__":
     parser.add_argument("--corpus_src", type=str, default=None, help="Archivo corpus en idioma origen")
     parser.add_argument("--corpus_tgt", type=str, default=None, help="Archivo corpus en idioma destino")
     parser.add_argument("--n", type=int, default=None, help="Número de imágenes a evaluar")
+    parser.add_argument("--save_ocr", action="store_true", help="Guardar resultados de OCR")
     parser.add_argument("--save_trans", action="store_true", help="Guardar traducciones en disco")
     parser.add_argument("--trans_folder", type=str, default="translations", help="Carpeta para guardar traducciones")
     parser.add_argument("--save_eval", action="store_true", help="Guardar resultados de evaluación")
     parser.add_argument("--print_trans", action="store_true", help="Imprimir traducciones en consola")
+    parser.add_argument("--shuffle", action="store_true", help="Mezclar las imágenes antes de la traducción")
     args = parser.parse_args()
 
     # Set language pairs
@@ -113,7 +116,7 @@ if __name__ == "__main__":
         args.n = len(os.listdir(IMAGES_SRC))
 
     # If a number is specified, use that number of images
-    numbers = get_image_numbers(args.n, os.listdir(IMAGES_SRC))
+    numbers = get_image_numbers(args.n, os.listdir(IMAGES_SRC), shuf=args.shuffle)
 
     # Get image paths
     images_paths_en = get_image_paths(IMAGES_SRC, numbers)
@@ -134,6 +137,15 @@ if __name__ == "__main__":
         total_time += end_time - start_time
 
     print(f"Processed {len(results)} images in {total_time:.2f} seconds.")
+
+    if args.save_ocr:
+        # Save the OCR results to a file
+        output_file = 'ocr_results.txt'
+        with open(output_file, 'w') as f:
+            for i, page in enumerate(results):
+                f.write(f"Image {i+1}:\t")
+                f.write(page.render().replace('\n', ' ') + '\n\n')
+        print(f"OCR results saved to {output_file}")
 
     # Prepare sentences for evaluation
     extracted_sentences = []
@@ -167,7 +179,7 @@ if __name__ == "__main__":
     mt_eval.translate(save=args.save_trans, folder=args.trans_folder)
 
     # Print the translations
-    if args.print_trans: 
+    if args.print_trans:    
         for engine, translations in mt_eval.mt.items():
             print(f"Translations for {engine}:")
             for i, translation in zip(images_paths_en.keys(), translations.segments()):
