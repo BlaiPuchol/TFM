@@ -269,7 +269,7 @@ class MTEvaluation:
                 self.time[engine] = 0
                 try:
                     for seg in segments:
-                        encoded_src = tokenizer(seg, return_tensors="pt", padding=True, truncation=True)
+                        encoded_src = tokenizer(seg, return_tensors="pt", padding=True, truncation=True).to(model.device)
                         start = time.time()
                         # Generate output
                         generated_tokens = model.generate(**encoded_src, max_new_tokens=30, forced_bos_token_id=tokenizer.get_lang_id(self.lng_tgt))
