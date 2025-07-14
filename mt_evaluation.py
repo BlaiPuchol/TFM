@@ -11,6 +11,14 @@ from corpus_statistics import CorpusStatistics
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers.pipelines import pipeline
 from transformers import M2M100ForConditionalGeneration, M2M100Tokenizer
+from tqdm import tqdm
+import transformers
+import logging
+
+# Suppress transformers warnings
+logging.getLogger("transformers.generation_utils").setLevel(logging.ERROR)
+logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
+transformers.logging.set_verbosity_error()
 
 class MTEvaluation:
     """
@@ -236,7 +244,7 @@ class MTEvaluation:
                 segments = self.src.segments()
                 self.time[engine] = 0
                 try:
-                    for seg in segments:
+                    for seg in tqdm(segments, desc=f"Translating ({engine})"):
                         prompt = "Translate this sentence without adding any comments\n" + self.lang_mapping[self.lng_src] + ": " + seg + " " + self.lang_mapping[self.lng_tgt] + ":"
                         start = time.time()
                         # Generate output
@@ -268,8 +276,8 @@ class MTEvaluation:
                 segments = self.src.segments()
                 self.time[engine] = 0
                 try:
-                    for seg in segments:
-                        encoded_src = tokenizer(seg, return_tensors="pt", padding=True, truncation=True).to(model.device)
+                    for seg in tqdm(segments, desc=f"Translating ({engine})"):
+                        encoded_src = tokenizer(seg, return_tensors="pt", padding=True, truncation=True)
                         start = time.time()
                         # Generate output
                         generated_tokens = model.generate(**encoded_src, max_new_tokens=30, forced_bos_token_id=tokenizer.get_lang_id(self.lng_tgt))
@@ -308,7 +316,7 @@ class MTEvaluation:
                 segments = self.src.segments()
                 self.time[engine] = 0
                 try:
-                    for seg in segments:
+                    for seg in tqdm(segments, desc=f"Translating ({engine})"):
                         prompt = self.lang_mapping[self.lng_src] + ": " + seg + " " + self.lang_mapping[self.lng_tgt] + ":"
                         start = time.time()
                         # Generate output
@@ -353,7 +361,7 @@ class MTEvaluation:
         if not save and to_json:
             return data
 
-    def corpus_evaluate(self, engines: Optional[list] = None, save: bool = False, folder: Optional[str] = None, to_json: bool = True):
+    def corpus_evaluate(self, engines: Optional[list] = None, save: bool = False, folder: Optional[str] = None, to_json: bool = True, print_results: bool = False):
         """
         Evaluate the translation for a specific engine or a list of engines and save the results in a file or return a json object
         """
@@ -391,7 +399,8 @@ class MTEvaluation:
                         f.write(json.dumps({"bleu": b.score, "chrf": c.score, "ter": t.score}))
                 elif to_json:
                     data[engine] = {"bleu": b.score, "chrf": c.score, "ter": t.score}
-                else:
+                    
+                if print_results:
                     print("Engine: " + engine)
                     print("BLEU: ", b.score)
                     print("CHRF: ", c.score)

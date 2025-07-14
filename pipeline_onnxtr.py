@@ -60,12 +60,13 @@ if __name__ == "__main__":
     parser.add_argument("--corpus_src", type=str, default=None, help="Archivo corpus en idioma origen")
     parser.add_argument("--corpus_tgt", type=str, default=None, help="Archivo corpus en idioma destino")
     parser.add_argument("--n", type=int, default=None, help="Número de imágenes a evaluar")
+    parser.add_argument("--shuffle", action="store_true", help="Mezclar las imágenes antes de la traducción")
     parser.add_argument("--save_ocr", action="store_true", help="Guardar resultados de OCR")
     parser.add_argument("--save_trans", action="store_true", help="Guardar traducciones en disco")
     parser.add_argument("--trans_folder", type=str, default="translations", help="Carpeta para guardar traducciones")
     parser.add_argument("--save_eval", action="store_true", help="Guardar resultados de evaluación")
     parser.add_argument("--print_trans", action="store_true", help="Imprimir traducciones en consola")
-    parser.add_argument("--shuffle", action="store_true", help="Mezclar las imágenes antes de la traducción")
+    parser.add_argument("--print_results", action="store_true", help="Imprimir resultados de evaluación en consola")
     args = parser.parse_args()
 
     # Set language pairs
@@ -80,7 +81,7 @@ if __name__ == "__main__":
 
     # Engines to evaluate
     engines = {
-        'euroLLM': 'utter-project/EuroLLM-1.7B',
+        'euroLLM': 'utter-project/EuroLLM-9B',
         'LLaMA': 'meta-llama/Llama-3.2-1B-Instruct',
         'M2M100': 'facebook/m2m100_1.2B',
     }
@@ -144,7 +145,7 @@ if __name__ == "__main__":
         with open(output_file, 'w') as f:
             for i, page in enumerate(results):
                 f.write(f"Image {i+1}:\t")
-                f.write(page.render().replace('\n', ' ') + '\n\n')
+                f.write(page.render().replace('\n', ' ') + '\n')
         print(f"OCR results saved to {output_file}")
 
     # Prepare sentences for evaluation
