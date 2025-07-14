@@ -143,8 +143,8 @@ if __name__ == "__main__":
         # Save the OCR results to a file
         output_file = 'ocr_results.txt'
         with open(output_file, 'w') as f:
-            for i, page in enumerate(results):
-                f.write(f"Image {i+1}:\t")
+            for i, page in zip(images_paths_en.keys(), results):
+                f.write(f"Image {i}:\t")
                 f.write(page.render().replace('\n', ' ') + '\n')
         print(f"OCR results saved to {output_file}")
 
