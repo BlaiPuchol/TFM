@@ -49,6 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("--trans_folder", type=str, default="translations", help="Carpeta para guardar traducciones")
     parser.add_argument("--save_eval", action="store_true", help="Guardar resultados de evaluación")
     parser.add_argument("--print_trans", action="store_true", help="Imprimir traducciones en consola")
+    parser.add_argument("--print_results", action="store_true", help="Imprimir resultados de evaluación")
     args = parser.parse_args()
 
     # Set language pairs
@@ -112,4 +113,4 @@ if __name__ == "__main__":
             print()
 
     # Evaluate the results of each model
-    mt_eval.corpus_evaluate(to_json=False, save=args.save_eval)
+    mt_eval.corpus_evaluate(to_json=False, save=args.save_eval, print_results=args.print_results)

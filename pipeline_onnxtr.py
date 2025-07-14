@@ -188,4 +188,4 @@ if __name__ == "__main__":
             print()
 
     # Evaluate the results of each model
-    mt_eval.corpus_evaluate(to_json=False, save=args.save_eval)
+    mt_eval.corpus_evaluate(to_json=False, save=args.save_eval, print_results=args.print_results)
