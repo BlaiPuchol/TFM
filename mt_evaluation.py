@@ -248,7 +248,7 @@ class MTEvaluation:
                         prompt = "Translate this sentence without adding any comments\n" + self.lang_mapping[self.lng_src] + ": " + seg + " " + self.lang_mapping[self.lng_tgt] + ":"
                         start = time.time()
                         # Generate output
-                        output = translator(prompt, max_new_tokens=30, do_sample=False)[0]['generated_text']
+                        output = translator(prompt, max_new_tokens=50, do_sample=False)[0]['generated_text']
                         end = time.time()
                         self.time[engine] += end - start
                         # Remove the prompt from the output

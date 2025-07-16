@@ -41,7 +41,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluación de traducción de imágenes con OCR y MT.")
     parser.add_argument("--src_lang", type=str, default="en", help="Idioma de origen (source language)")
     parser.add_argument("--tgt_lang", type=str, default="de", help="Idioma de destino (target language)")
-    parser.add_argument("--input_file", type=str, default=None, help="Archivo de texto con las frases a traducir.")
     parser.add_argument("--corpus_src", type=str, default=None, help="Archivo corpus en idioma origen")
     parser.add_argument("--corpus_tgt", type=str, default=None, help="Archivo corpus en idioma destino")
     parser.add_argument("--n", type=int, default=None, help="Número de imágenes a evaluar")
@@ -57,7 +56,6 @@ if __name__ == "__main__":
     target_lang = args.tgt_lang
 
     # Dataset directories and files
-    INPUT_FILE = args.input_file
     CORPUS_SRC = args.corpus_src
     CORPUS_TGT = args.corpus_tgt
 
@@ -76,7 +74,7 @@ if __name__ == "__main__":
     reference_sentences = []
     image_numbers = []
 
-    with open(INPUT_FILE, 'r', encoding='utf-8') as f:
+    with open(CORPUS_SRC, 'r', encoding='utf-8') as f:
         for line in f:
             if args.n is not None and len(source_sentences) >= args.n:
                 break
@@ -95,7 +93,7 @@ if __name__ == "__main__":
                 print(f"Skipping malformed line: {line}")
                 continue
 
-    print(f"Read {len(source_sentences)} sentences from {INPUT_FILE}")
+    print(f"Read {len(source_sentences)} sentences from {CORPUS_SRC}")
 
     # Set new source and reference sentences for the MTEvaluation class
     mt_eval.set_source_from_list(source_sentences)
