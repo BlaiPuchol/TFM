@@ -61,9 +61,9 @@ if __name__ == "__main__":
 
     # Engines to evaluate
     engines = {
-        'euroLLM': 'utter-project/EuroLLM-9B',
-        'LLaMA': 'meta-llama/Llama-3.2-1B-Instruct',
-        'M2M100': 'facebook/m2m100_1.2B',
+        # 'euroLLM': 'utter-project/EuroLLM-9B',
+        'LLaMA': 'meta-llama/Llama-3.2-3B-Instruct',
+        # 'M2M100': 'facebook/m2m100_1.2B',
     }
 
     # Create an instance of the MTEvaluation class

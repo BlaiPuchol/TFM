@@ -245,14 +245,14 @@ class MTEvaluation:
                 self.time[engine] = 0
                 try:
                     for seg in tqdm(segments, desc=f"Translating ({engine})"):
-                        prompt = "Translate this sentence without adding any comments\n" + self.lang_mapping[self.lng_src] + ": " + seg + " " + self.lang_mapping[self.lng_tgt] + ":"
+                        prompt = "Translate the following sentence into German. Respond **only** with the translation, no labels, no other languages:\n\n" + self.lang_mapping[self.lng_src] + ": " + seg + "\n" + self.lang_mapping[self.lng_tgt] + ":"
                         start = time.time()
                         # Generate output
                         output = translator(prompt, max_new_tokens=50, do_sample=False)[0]['generated_text']
                         end = time.time()
                         self.time[engine] += end - start
                         # Remove the prompt from the output
-                        output = output[len(prompt):].strip()
+                        output = output[len(prompt):].strip().split('\n')[0]
                         # HuggingFace pipeline returns the prompt with the generated text, so we need to extract the translation
                         self.mt[engine].add_segment(output)
                 except Exception as ex:

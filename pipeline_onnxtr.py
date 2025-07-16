@@ -81,8 +81,8 @@ if __name__ == "__main__":
 
     # Engines to evaluate
     engines = {
-        'euroLLM': 'utter-project/EuroLLM-9B',
-        'LLaMA': 'meta-llama/Llama-3.2-1B-Instruct',
+        # 'euroLLM-9B': 'utter-project/EuroLLM-9B',
+        # 'LLaMA': 'meta-llama/Llama-3.2-1B-Instruct',
         'M2M100': 'facebook/m2m100_1.2B',
     }
 
