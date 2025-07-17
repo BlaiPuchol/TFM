@@ -28,9 +28,7 @@ from jiwer import wer, cer, mer, wil, wip, Compose, RemovePunctuation, ReduceToL
 from mt_evaluation import MTEvaluation
 
 # Makea list of the number of images to evaluate
-def get_image_numbers(n, file_list, shuf=False):
-    if shuf:
-        shuffle(file_list)
+def get_image_numbers(n, file_list):
     image_numbers = []
     for i, filename in enumerate(file_list):
         if i >= n:
@@ -58,6 +56,8 @@ if __name__ == "__main__":
     parser.add_argument("--corpus_src", type=str, default=None, help="Archivo corpus en idioma origen")
     parser.add_argument("--corpus_tgt", type=str, default=None, help="Archivo corpus en idioma destino")
     parser.add_argument("-n", type=int, default=None, help="Número de imágenes a evaluar")
+    parser.add_argument("--start_index", type=int, default=None, help="Índice de inicio para la selección de imágenes")
+    parser.add_argument("--end_index", type=int, default=None, help="Índice de fin para la selección de imágenes")
     parser.add_argument("--shuffle", action="store_true", help="Mezclar las imágenes antes de la traducción")
     parser.add_argument("--save_ocr", action="store_true", help="Guardar resultados de OCR")
     parser.add_argument("--translate", action="store_true", help="Traducir las imágenes")
@@ -111,12 +111,19 @@ if __name__ == "__main__":
                               )
     
     # Number the images to evaluate
-    if args.n is None:
-        # If no number is specified, use all images in the source directory
-        args.n = len(os.listdir(IMAGES_SRC))
+    file_list = os.listdir(IMAGES_SRC)
+    if args.shuffle:
+        shuffle(file_list)
 
+    if args.start_index is not None and args.end_index is not None:
+        file_list = file_list[args.start_index:args.end_index]
+        args.n = len(file_list)
+    elif args.n is None:
+        # If no number is specified, use all images in the source directory
+        args.n = len(file_list)
+    
     # If a number is specified, use that number of images
-    numbers = get_image_numbers(args.n, os.listdir(IMAGES_SRC), shuf=args.shuffle)
+    numbers = get_image_numbers(args.n, file_list)
 
     # Get image paths
     images_paths_en = get_image_paths(IMAGES_SRC, numbers)
