@@ -39,11 +39,11 @@ def get_image_paths(image_dir, numbers):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluación de traducción de imágenes con OCR y MT.")
-    parser.add_argument("--src_lang", type=str, default="en", help="Idioma de origen (source language)")
-    parser.add_argument("--tgt_lang", type=str, default="de", help="Idioma de destino (target language)")
+    parser.add_argument("--src_lang", type=str, default=None, help="Idioma de origen (source language)")
+    parser.add_argument("--tgt_lang", type=str, default=None, help="Idioma de destino (target language)")
     parser.add_argument("--corpus_src", type=str, default=None, help="Archivo corpus en idioma origen")
     parser.add_argument("--corpus_tgt", type=str, default=None, help="Archivo corpus en idioma destino")
-    parser.add_argument("--n", type=int, default=None, help="Número de imágenes a evaluar")
+    parser.add_argument("-n", type=int, default=None, help="Número de imágenes a evaluar")
     parser.add_argument("--save_trans", action="store_true", help="Guardar traducciones en disco")
     parser.add_argument("--trans_folder", type=str, default="translations", help="Carpeta para guardar traducciones")
     parser.add_argument("--save_eval", action="store_true", help="Guardar resultados de evaluación")
@@ -61,9 +61,9 @@ if __name__ == "__main__":
 
     # Engines to evaluate
     engines = {
-        # 'euroLLM': 'utter-project/EuroLLM-9B',
-        'LLaMA': 'meta-llama/Llama-3.2-3B-Instruct',
-        # 'M2M100': 'facebook/m2m100_1.2B',
+        'euroLLM': 'utter-project/EuroLLM-9B',
+        'LLaMA': 'meta-llama/Llama-3.2-1B',
+        'M2M100': 'facebook/m2m100_1.2B',
     }
 
     # Create an instance of the MTEvaluation class

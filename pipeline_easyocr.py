@@ -16,9 +16,8 @@ from huggingface_hub import login
 
 import matplotlib.pyplot as plt
 
-# Import docTR libraries
-from onnxtr.io import DocumentFile
-from onnxtr.models import ocr_predictor
+# Import easyocr
+import easyocr
 
 
 # Import necessary libraries for evaluation metrics
@@ -60,6 +59,7 @@ if __name__ == "__main__":
     parser.add_argument("-n", type=int, default=None, help="Número de imágenes a evaluar")
     parser.add_argument("--shuffle", action="store_true", help="Mezclar las imágenes antes de la traducción")
     parser.add_argument("--save_ocr", action="store_true", help="Guardar resultados de OCR")
+    parser.add_argument("--translate", action="store_true", help="Traducir las imágenes")
     parser.add_argument("--save_trans", action="store_true", help="Guardar traducciones en disco")
     parser.add_argument("--trans_folder", type=str, default="translations", help="Carpeta para guardar traducciones")
     parser.add_argument("--save_eval", action="store_true", help="Guardar resultados de evaluación")
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     # Engines to evaluate
     engines = {
         # 'euroLLM-9B': 'utter-project/EuroLLM-9B',
-        # 'LLaMA': 'meta-llama/Llama-3.2-1B-Instruct',
+        # 'LLaMA': 'meta-llama/Llama-3.2-3B-Instruct',
         'M2M100': 'facebook/m2m100_1.2B',
     }
 
@@ -88,26 +88,7 @@ if __name__ == "__main__":
     mt_eval = MTEvaluation(source_lang, target_lang, engines=engines, source=CORPUS_SRC, references=CORPUS_TGT)
 
     # Instantiate a pretrained model
-    predictor = ocr_predictor('fast_base', # Text Detection
-                              'crnn_vgg16_bn', # Text Recognition
-                              # Document related parameters
-                              assume_straight_pages=False,  # set to `False` if the pages are not straight (rotation, perspective, etc.) (default: True)
-                              straighten_pages=False,  # set to `True` if the pages should be straightened before final processing (default: False)
-                              export_as_straight_boxes=False,  # set to `True` if the boxes should be exported as if the pages were straight (default: False)
-                              # Preprocessing related parameters
-                              preserve_aspect_ratio=True,  # set to `False` if the aspect ratio should not be preserved (default: True)
-                              symmetric_pad=True,  # set to `False` to disable symmetric padding (default: True)
-                              # Additional parameters - meta information
-                              detect_orientation=False,  # set to `True` if the orientation of the pages should be detected (default: False)
-                              detect_language=False, # set to `True` if the language of the pages should be detected (default: False)
-                              # Orientation specific parameters in combination with `assume_straight_pages=False` and/or `straighten_pages=True`
-                              disable_crop_orientation=False,  # set to `True` if the crop orientation classification should be disabled (default: False)
-                              disable_page_orientation=False,  # set to `True` if the general page orientation classification should be disabled (default: False)
-                              # DocumentBuilder specific parameters
-                              resolve_lines=True,  # whether words should be automatically grouped into lines (default: True)
-                              resolve_blocks=False,  # whether lines should be automatically grouped into blocks (default: False)
-                              paragraph_break=0.035,  # relative length of the minimum space separating paragraphs (default: 0.035)
-                              )
+    reader = easyocr.Reader([source_lang], gpu=True)
     
     # Number the images to evaluate
     if args.n is None:
@@ -129,9 +110,9 @@ if __name__ == "__main__":
     total_time = 0
     results = []
     for path in tqdm(images_en, desc="Making OCR to the images"):
-        images = DocumentFile.from_images(path)
         start_time = time.time()
-        results.append(predictor(images).pages[0])
+        result = reader.readtext(path)
+        results.append(result)
         end_time = time.time()
         total_time += end_time - start_time
 
@@ -139,21 +120,23 @@ if __name__ == "__main__":
 
     if args.save_ocr:
         # Save the OCR results to a file
-        output_file = 'ocr_results_onnxtr_' + source_lang + '.txt'
+        output_file = 'ocr_results_easyocr_' + source_lang + '.txt'
         with open(output_file, 'w') as f:
-            for i, page in zip(images_paths_en.keys(), results):
+            for i, page_result in zip(images_paths_en.keys(), results):
                 f.write(f"Image {i}:\t")
-                f.write(page.render().replace('\n', ' ') + '\n')
+                extracted_text = ' '.join([res[1] for res in page_result])
+                f.write(extracted_text + '\n')
         print(f"OCR results saved to {output_file}")
 
     # Prepare sentences for evaluation
     extracted_sentences = []
     source_sentences = []
     reference_sentences = []
-    for i, (n, page) in enumerate(zip(images_paths_en.keys(), results)):
+    for i, (n, page_result) in enumerate(zip(images_paths_en.keys(), results)):
         if i >= args.n:
             break
-        extracted_sentences.append(page.render().replace('\n', ' '))
+        extracted_text = ' '.join([res[1] for res in page_result])
+        extracted_sentences.append(extracted_text)
         source_sentences.append(mt_eval.get_source()[int(n)])
         reference_sentences.append(mt_eval.get_references()[int(n)])
 
@@ -173,20 +156,21 @@ if __name__ == "__main__":
     print(f"WIL: {wil_score:.2%}")
     print(f"WIP: {wip_score:.2%}")
 
-    # Set new source and reference sentences for the MTEvaluation class
-    mt_eval.set_source_from_list(extracted_sentences)
-    mt_eval.set_references_from_list(reference_sentences)
+    if args.translate:
+        # Set new source and reference sentences for the MTEvaluation class
+        mt_eval.set_source_from_list(extracted_sentences)
+        mt_eval.set_references_from_list(reference_sentences)
 
-    # Translate the source sentences using the engines specified in the MTEvaluation class
-    mt_eval.translate(save=args.save_trans, folder=args.trans_folder)
+        # Translate the source sentences using the engines specified in the MTEvaluation class
+        mt_eval.translate(save=args.save_trans, folder=args.trans_folder)
 
-    # Print the translations
-    if args.print_trans:    
-        for engine, translations in mt_eval.mt.items():
-            print(f"Translations for {engine}:")
-            for i, translation in zip(images_paths_en.keys(), translations.segments()):
-                print(f"Image {i}: {translation}")
-            print()
+        # Print the translations
+        if args.print_trans:    
+            for engine, translations in mt_eval.mt.items():
+                print(f"Translations for {engine}:")
+                for i, translation in zip(images_paths_en.keys(), translations.segments()):
+                    print(f"Image {i}: {translation}")
+                print()
 
-    # Evaluate the results of each model
-    mt_eval.corpus_evaluate(to_json=False, save=args.save_eval, print_results=args.print_results)
+        # Evaluate the results of each model
+        mt_eval.corpus_evaluate(to_json=False, save=args.save_eval, print_results=args.print_results)
