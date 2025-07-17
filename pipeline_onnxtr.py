@@ -60,6 +60,7 @@ if __name__ == "__main__":
     parser.add_argument("-n", type=int, default=None, help="Número de imágenes a evaluar")
     parser.add_argument("--shuffle", action="store_true", help="Mezclar las imágenes antes de la traducción")
     parser.add_argument("--save_ocr", action="store_true", help="Guardar resultados de OCR")
+    parser.add_argument("--translate", action="store_true", help="Traducir las imágenes")
     parser.add_argument("--save_trans", action="store_true", help="Guardar traducciones en disco")
     parser.add_argument("--trans_folder", type=str, default="translations", help="Carpeta para guardar traducciones")
     parser.add_argument("--save_eval", action="store_true", help="Guardar resultados de evaluación")
@@ -173,20 +174,22 @@ if __name__ == "__main__":
     print(f"WIL: {wil_score:.2%}")
     print(f"WIP: {wip_score:.2%}")
 
-    # Set new source and reference sentences for the MTEvaluation class
-    mt_eval.set_source_from_list(extracted_sentences)
-    mt_eval.set_references_from_list(reference_sentences)
+    # If translation is requested, proceed with translation
+    if args.translate:
+        # Set new source and reference sentences for the MTEvaluation class
+        mt_eval.set_source_from_list(extracted_sentences)
+        mt_eval.set_references_from_list(reference_sentences)
 
-    # Translate the source sentences using the engines specified in the MTEvaluation class
-    mt_eval.translate(save=args.save_trans, folder=args.trans_folder)
+        # Translate the source sentences using the engines specified in the MTEvaluation class
+        mt_eval.translate(save=args.save_trans, folder=args.trans_folder)
 
-    # Print the translations
-    if args.print_trans:    
-        for engine, translations in mt_eval.mt.items():
-            print(f"Translations for {engine}:")
-            for i, translation in zip(images_paths_en.keys(), translations.segments()):
-                print(f"Image {i}: {translation}")
-            print()
+        # Print the translations
+        if args.print_trans:    
+            for engine, translations in mt_eval.mt.items():
+                print(f"Translations for {engine}:")
+                for i, translation in zip(images_paths_en.keys(), translations.segments()):
+                    print(f"Image {i}: {translation}")
+                print()
 
-    # Evaluate the results of each model
-    mt_eval.corpus_evaluate(to_json=False, save=args.save_eval, print_results=args.print_results)
+        # Evaluate the results of each model
+        mt_eval.corpus_evaluate(to_json=False, save=args.save_eval, print_results=args.print_results)
