@@ -249,7 +249,7 @@ class MTEvaluation:
                 self.time[engine] = 0
                 try:
                     for seg in tqdm(segments, desc=f"Translating ({engine})"):
-                        prompt = "Translate this sentence without adding any comments\n" + self.lang_mapping[self.lng_src] + ": " + seg + " " + self.lang_mapping[self.lng_tgt] + ":"
+                        prompt = "Translate the following sentence into " + self.lang_mapping[self.lng_tgt] + ". Respond **only** with the translation, no labels, no other languages:\n\n" + self.lang_mapping[self.lng_src] + ": " + seg + "\n" + self.lang_mapping[self.lng_tgt] + ":"
                         start = time.time()
                         # Generate output
                         output = translator(prompt, max_new_tokens=50, do_sample=False)[0]['generated_text']
