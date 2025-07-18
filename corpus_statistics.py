@@ -28,11 +28,14 @@ class CorpusStatistics:
     def load_corpus(self, path) -> None:
         """
         Load a corpus from a file where each line is a segment.
+        Ensures each line is treated as a single segment, stripping any trailing whitespace.
         """
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             self.corpus = []
-            for line in f.read().splitlines():
-                self.add_segment(line)
+            for line in f:
+                segment = line.rstrip('\r\n')
+                if segment:  # Optionally skip empty lines
+                    self.add_segment(segment)
 
     def load_corpus_from_list(self, corpus:list) -> None:
         """
@@ -141,7 +144,7 @@ class CorpusStatistics:
         """
         with open(file, "w") as f:
             for sent in self.corpus:
-                f.write(sent + "\n")
+                f.write(sent.replace("\n", " ") + "\n")
 
     def stats(self, file:str=None, save:bool=False) -> None:
         """
