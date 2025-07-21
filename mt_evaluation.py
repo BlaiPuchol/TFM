@@ -234,31 +234,37 @@ class MTEvaluation:
             if engine == "LLaMA":
                 # LLaMA is a special case
                 model_info = self.engines[engine]
-                tokenizer = AutoTokenizer.from_pretrained(model_info, use_fast=True)
-                model = AutoModelForCausalLM.from_pretrained(
-                    model_info,
+                # Use chat-style pipeline
+                translator = transformers.pipeline(
+                    "text-generation",
+                    model=model_info,
+                    model_kwargs={"torch_dtype": torch.bfloat16},
                     device_map="auto",
-                    torch_dtype="auto"
                 )
-                assert torch.cuda.is_available(), "CUDA is not available."
-                # Create a translation pipeline
-                translator = pipeline("text-generation", model=model, tokenizer=tokenizer)
 
                 self.mt[engine] = CorpusStatistics(name="mt_" + engine)
                 segments = self.src.segments()
                 self.time[engine] = 0
                 try:
                     for seg in tqdm(segments, desc=f"Translating ({engine})"):
-                        prompt = "Translate the following sentence into " + self.lang_mapping[self.lng_tgt] + ". Respond **only** with the translation, no labels, no other languages:\n\n" + self.lang_mapping[self.lng_src] + ": " + seg + "\n" + self.lang_mapping[self.lng_tgt] + ":"
+                        messages = [
+                            {
+                                "role": "system",
+                                "content": f"You are a translation assistant. Translate the following sentence into {self.lang_mapping[self.lng_tgt]}. Respond **only** with the translation, no labels, no other languages.",
+                            },
+                            {
+                                "role": "user",
+                                "content": f"{self.lang_mapping[self.lng_src]}: {seg}\n{self.lang_mapping[self.lng_tgt]}:",
+                            },
+                        ]
                         start = time.time()
-                        # Generate output
-                        output = translator(prompt, max_new_tokens=50, do_sample=False)[0]['generated_text']
+                        output = translator(messages, max_new_tokens=50)
                         end = time.time()
                         self.time[engine] += end - start
-                        # Remove the prompt from the output
-                        output = output[len(prompt):].strip()
-                        # HuggingFace pipeline returns the prompt with the generated text, so we need to extract the translation
-                        self.mt[engine].add_segment(output)
+                        # Extract the translation from the output
+                        translation = output[0]["generated_text"][-1]["content"]
+                        translation = str(translation).strip()
+                        self.mt[engine].add_segment(translation)
                 except Exception as ex:
                     if self.mt[engine].seg_count() == 0:
                         self.errors[engine] = "Empty translation"
