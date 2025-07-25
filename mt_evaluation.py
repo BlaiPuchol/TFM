@@ -256,7 +256,7 @@ class MTEvaluation:
                         end = time.time()
                         self.time[engine] += end - start
                         # Remove the prompt from the output
-                        output = output[len(prompt):].strip()
+                        output = output[len(prompt):].strip().split('\n')[0]  # Take the first line in case of multiple lines
                         # HuggingFace pipeline returns the prompt with the generated text, so we need to extract the translation
                         self.mt[engine].add_segment(output if not lowercase else output.lower())
                 except Exception as ex:
