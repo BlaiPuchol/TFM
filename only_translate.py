@@ -49,6 +49,9 @@ if __name__ == "__main__":
     parser.add_argument("--save_eval", action="store_true", help="Guardar resultados de evaluación")
     parser.add_argument("--print_trans", action="store_true", help="Imprimir traducciones en consola")
     parser.add_argument("--print_results", action="store_true", help="Imprimir resultados de evaluación")
+    parser.add_argument("--lowercase_source", action="store_true", help="Pasar a minúsculas las frases del archivo fuente")
+    parser.add_argument("--lowercase_trans", action="store_true", help="Pasar a minúsculas las frases del archivo de traducción")
+    parser.add_argument("--lowercase_reference", action="store_true", help="Pasar a minúsculas las frases del archivo referencia")
     args = parser.parse_args()
 
     # Set language pairs
@@ -87,8 +90,13 @@ if __name__ == "__main__":
                 header, sentence = line.split(':\t', 1)
                 img_num_str = header.split(' ')[1]
                 image_numbers.append(img_num_str)
+                if args.lowercase_source:
+                    sentence = sentence.lower()
                 source_sentences.append(sentence)
-                reference_sentences.append(mt_eval.get_references()[int(img_num_str)])
+                ref_sentence = mt_eval.get_references()[int(img_num_str)]
+                if args.lowercase_reference:
+                    ref_sentence = ref_sentence.lower()
+                reference_sentences.append(ref_sentence)
             except (ValueError, IndexError) as e:
                 print(f"Skipping malformed line: {line}")
                 continue
@@ -100,7 +108,7 @@ if __name__ == "__main__":
     mt_eval.set_references_from_list(reference_sentences)
 
     # Translate the source sentences using the engines specified in the MTEvaluation class
-    mt_eval.translate(save=args.save_trans, folder=args.trans_folder)
+    mt_eval.translate(save=args.save_trans, folder=args.trans_folder, lowercase=args.lowercase_trans)
 
     # Print the translations
     if args.print_trans:    

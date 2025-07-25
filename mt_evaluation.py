@@ -204,8 +204,8 @@ class MTEvaluation:
         for engine in e:
             t[engine] = self.time[engine]
         return t
-    
-    def translate(self, engines: Optional[list] = None, save: bool = False, folder: Optional[str] = None, to_json: bool = False):
+
+    def translate(self, engines: Optional[list] = None, lowercase: bool = False, save: bool = False, folder: Optional[str] = None, to_json: bool = False):
         """
         Translate the source file with the specified engines (LLMs) and save the results in a JSON or text file or return a json object.
         Engines should be a dict with engine names as keys and HuggingFace model names or callable pipelines as values.
@@ -249,7 +249,7 @@ class MTEvaluation:
                 self.time[engine] = 0
                 try:
                     for seg in tqdm(segments, desc=f"Translating ({engine})"):
-                        prompt = "Translate the following sentence into " + self.lang_mapping[self.lng_tgt] + ". Respond **only** with the translation, no labels, no other languages:\n\n" + self.lang_mapping[self.lng_src] + ": " + seg + "\n" + self.lang_mapping[self.lng_tgt] + ":"
+                        prompt = "Translate the following sentence into " + self.lang_mapping[self.lng_tgt] + ". Respond **only** with the translation, no labels, no other languages, NO NOTES NOR COMMENTS:\n\n" + self.lang_mapping[self.lng_src] + ": " + seg + "\n" + self.lang_mapping[self.lng_tgt] + ":"
                         start = time.time()
                         # Generate output
                         output = translator(prompt, max_new_tokens=50, do_sample=False)[0]['generated_text']
@@ -258,7 +258,7 @@ class MTEvaluation:
                         # Remove the prompt from the output
                         output = output[len(prompt):].strip()
                         # HuggingFace pipeline returns the prompt with the generated text, so we need to extract the translation
-                        self.mt[engine].add_segment(output)
+                        self.mt[engine].add_segment(output if not lowercase else output.lower())
                 except Exception as ex:
                     if self.mt[engine].seg_count() == 0:
                         self.errors[engine] = "Empty translation"
@@ -291,7 +291,7 @@ class MTEvaluation:
                         output = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
                         output = output.strip()
                         # HuggingFace pipeline returns the prompt with the generated text, so we need to extract the translation
-                        self.mt[engine].add_segment(output)
+                        self.mt[engine].add_segment(output if not lowercase else output.lower())
                 except Exception as ex:
                     if self.mt[engine].seg_count() == 0:
                         self.errors[engine] = "Empty translation"
@@ -328,9 +328,9 @@ class MTEvaluation:
                         end = time.time()
                         self.time[engine] += end - start
                         # Remove the prompt from the output
-                        output = output[len(prompt):].strip()
+                        output = output[len(prompt):].strip() 
                         # HuggingFace pipeline returns the prompt with the generated text, so we need to extract the translation
-                        self.mt[engine].add_segment(output)
+                        self.mt[engine].add_segment(output if not lowercase else output.lower())
                 except Exception as ex:
                     if self.mt[engine].seg_count() == 0:
                         self.errors[engine] = "Empty translation"
