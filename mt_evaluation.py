@@ -1,4 +1,5 @@
 import json
+import re
 import random
 import time
 import os
@@ -231,7 +232,7 @@ class MTEvaluation:
             print("Translating with '" + engine + "'")
 
             # Special cases
-            if engine == "LLaMA":
+            if engine.startswith("llama") or engine.startswith("LLaMA"):
                 # LLaMA is a special case
                 model_info = self.engines[engine]
                 tokenizer = AutoTokenizer.from_pretrained(model_info, use_fast=True)
@@ -249,23 +250,43 @@ class MTEvaluation:
                 self.time[engine] = 0
                 try:
                     for seg in tqdm(segments, desc=f"Translating ({engine})"):
-                        prompt = "Translate the following sentence into " + self.lang_mapping[self.lng_tgt] + ". Respond **only** with the translation, no labels, no other languages, NO NOTES NOR COMMENTS:\n\n" + self.lang_mapping[self.lng_src] + ": " + seg + "\n" + self.lang_mapping[self.lng_tgt] + ":"
+                        prompt = (
+                            f'Translate the following sentence into {self.lang_mapping[self.lng_tgt]}. '
+                            'Respond only in this JSON format: {"translation": "<translated text>"}\n\n'
+                            f'{self.lang_mapping[self.lng_src]}: "{seg}"\n'
+                            f'{self.lang_mapping[self.lng_tgt]} (JSON):'
+                        )
+
                         start = time.time()
                         # Generate output
-                        output = translator(prompt, max_new_tokens=50, do_sample=False)[0]['generated_text']
+                        output = translator(prompt, max_new_tokens=100, do_sample=False)[0]['generated_text']
                         end = time.time()
                         self.time[engine] += end - start
-                        # Remove the prompt from the output
-                        output = output[len(prompt):].strip().split('\n')[0]  # Take the first line in case of multiple lines
-                        # HuggingFace pipeline returns the prompt with the generated text, so we need to extract the translation
-                        self.mt[engine].add_segment(output if not lowercase else output.lower())
+
+                        # Remove the prompt if it’s echoed back
+                        generated = output[len(prompt):].strip()
+
+                        # Extract JSON from the output (fallback regex in case it's noisy)
+                        try:
+                            match = re.search(r"\{.*?\}", generated, re.DOTALL)
+                            if not match:
+                                raise ValueError("No JSON found")
+                            json_str = match.group(0)
+                            data = json.loads(json_str)
+                            translation = data["translation"].strip()
+                        except Exception as e:
+                            print(f"[Warning] Failed to parse JSON: {e}")
+                            translation = generated.split('\n')[0].strip()  # fallback to raw text
+
+                        self.mt[engine].add_segment(translation.lower() if lowercase else translation)
+
                 except Exception as ex:
                     if self.mt[engine].seg_count() == 0:
                         self.errors[engine] = "Empty translation"
                     else:
                         self.errors[engine] = "Error"
                     print(ex)
-            elif engine == "M2M100":
+            elif engine.startswith("m2m100") or engine.startswith("M2M100"):
                 # M2M100 is a special case, we need to use the M2M100Tokenizer and M2M100ForConditionalGeneration
                 model_info = self.engines[engine]
                 tokenizer = M2M100Tokenizer.from_pretrained(model_info, use_fast=True)
