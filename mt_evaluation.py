@@ -276,7 +276,8 @@ class MTEvaluation:
                             translation = data["translation"].strip()
                         except Exception as e:
                             print(f"[Warning] Failed to parse JSON: {e}")
-                            translation = generated.split('\n')[0].strip()  # fallback to raw text
+                            # fallback to raw text but removing any {}
+                            translation = generated.split('\n')[0].split('}')[0].strip().replace('{', '').replace('}', '')
 
                         self.mt[engine].add_segment(translation.lower() if lowercase else translation)
 
