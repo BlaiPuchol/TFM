@@ -1,0 +1,238 @@
+# Evaluación de traducción de imágenes
+
+# Imports
+import argparse
+import time
+from random import shuffle
+import os
+from tqdm import tqdm
+
+# Hugging Face login
+
+from huggingface_hub import login
+
+# Login to Hugging Face Hub
+# login()
+
+import matplotlib.pyplot as plt
+
+# Import Google GenAI
+from google import genai
+from google.genai import types
+import base64
+
+# Import the MTEvaluation class from my TFG
+from mt_evaluation import MTEvaluation
+from sacrebleu.metrics.bleu import BLEU
+from sacrebleu.metrics.chrf import CHRF
+from sacrebleu.metrics.ter import TER
+
+lang_mapping = {
+    "en": "English",
+    "fr": "French",
+    "de": "German",
+    "es": "Spanish",
+    "it": "Italian",
+    "ro": "Romanian",
+}
+
+# Makea list of the number of images to evaluate
+def get_image_numbers(n, file_list, shuf=False):
+    if shuf:
+        shuffle(file_list)
+    image_numbers = []
+    for i, filename in enumerate(file_list):
+        if i >= n:
+            break
+        if filename.endswith('.jpg') or filename.endswith('.png'):
+            image_numbers.append(filename.split('.')[0])
+    return image_numbers
+
+# Make a list of image paths and save it in a dict, where the keys are the image names and the values are the image paths
+def get_image_paths(image_dir, numbers):
+    image_paths = {}
+    file_list = os.listdir(image_dir)
+    for filename in file_list:
+        if filename.split('.')[0] in numbers:
+            image_paths[filename.split('.')[0]] = os.path.join(image_dir, filename)
+    return image_paths
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Evaluación de traducción de imágenes con OCR y MT.")
+    parser.add_argument("--src_lang", type=str, default=None, help="Idioma de origen (source language)")
+    parser.add_argument("--tgt_lang", type=str, default=None, help="Idioma de destino (target language)")
+    parser.add_argument("--img_src_dir", type=str, default=None, help="Directorio de imágenes en idioma origen")
+    parser.add_argument("--img_tgt_dir", type=str, default=None, help="Directorio de imágenes en idioma destino")
+    parser.add_argument("--corpus_src", type=str, default=None, help="Archivo corpus en idioma origen")
+    parser.add_argument("--corpus_tgt", type=str, default=None, help="Archivo corpus en idioma destino")
+    parser.add_argument("-n", type=int, default=None, help="Número de imágenes a evaluar")
+    parser.add_argument("--shuffle", action="store_true", help="Mezclar las imágenes antes de la traducción")
+    parser.add_argument("--save_trans", action="store_true", help="Guardar traducciones en disco")
+    parser.add_argument("--trans_folder", type=str, default="translations", help="Carpeta para guardar traducciones")
+    parser.add_argument("--save_eval", action="store_true", help="Guardar resultados de evaluación")
+    parser.add_argument("--print_trans", action="store_true", help="Imprimir traducciones en consola")
+    parser.add_argument("--print_results", action="store_true", help="Imprimir resultados de evaluación en consola")
+    parser.add_argument("--lowercase_source", action="store_true", help="Pasar a minúsculas las frases del archivo fuente")
+    parser.add_argument("--lowercase_trans", action="store_true", help="Pasar a minúsculas las frases del archivo de traducción")
+    parser.add_argument("--lowercase_reference", action="store_true", help="Pasar a minúsculas las frases del archivo referencia")
+    args = parser.parse_args()
+
+    # Set language pairs
+    source_lang = args.src_lang
+    target_lang = args.tgt_lang
+
+    # Dataset directories and files
+    IMAGES_SRC = args.img_src_dir
+    IMAGES_TGT = args.img_tgt_dir
+    CORPUS_SRC = args.corpus_src
+    CORPUS_TGT = args.corpus_tgt
+
+    # Engines to evaluate
+    engines = {
+        'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
+    }
+
+    # Create an instance of the MTEvaluation class
+    mt_eval = MTEvaluation(source_lang, target_lang, engines=engines, source=CORPUS_SRC, references=CORPUS_TGT)
+    
+    # Number the images to evaluate
+    if args.n is None:
+        # If no number is specified, use all images in the source directory
+        args.n = len(os.listdir(IMAGES_SRC))
+
+    # If a number is specified, use that number of images
+    numbers = get_image_numbers(args.n, os.listdir(IMAGES_SRC), shuf=args.shuffle)
+
+    # Get image paths
+    images_paths_en = get_image_paths(IMAGES_SRC, numbers)
+    images_paths_de = get_image_paths(IMAGES_TGT, numbers)
+    print(f"Selected {len(images_paths_en)} images from {IMAGES_SRC}")
+    print(f"Selected {len(images_paths_de)} images from {IMAGES_TGT}")
+
+    # Read the images and run OCR on them with tqdm
+    images_en = [images_paths_en[name] for name in images_paths_en.keys()]
+
+    total_time = 0
+    results = {}
+    prompt = f"First, extract the {lang_mapping[source_lang].lower} text from this image. Then, translate the extracted text to {lang_mapping[target_lang]}. Provide only the final {lang_mapping[target_lang]} translation."
+    for engine_name, engine in mt_eval.engines.items():
+        client = genai.Client(
+            vertexai=True,
+            project="erudite-coast-467916-t0",
+            location="global",
+        )
+
+        model = "gemini-2.5-flash-lite"
+        print(f"Using model: {model}")
+        results[engine_name] = []
+
+        generate_content_config = types.GenerateContentConfig(
+            temperature = 1,
+            top_p = 0.95,
+            max_output_tokens = 65535,
+            safety_settings = [types.SafetySetting(
+            category="HARM_CATEGORY_HATE_SPEECH",
+            threshold="OFF"
+            ),types.SafetySetting(
+            category="HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold="OFF"
+            ),types.SafetySetting(
+            category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold="OFF"
+            ),types.SafetySetting(
+            category="HARM_CATEGORY_HARASSMENT",
+            threshold="OFF"
+            )],
+            thinking_config=types.ThinkingConfig(
+            thinking_budget=0,
+            ),
+        )
+        for path in tqdm(images_en, desc="Translating images using the engine"):
+            with open(path, "rb") as img_file:
+                img_bytes = img_file.read()
+            msg_img = types.Part.from_bytes(
+                data=img_bytes,
+                mime_type="image/jpeg",
+            )
+            msg_text = types.Part.from_text(
+                text=prompt,
+            )
+            contents = types.Content(
+                role="user",
+                parts=[
+                    msg_img,
+                    msg_text
+                ]
+            )
+            translation = ""
+            for chunk in client.models.generate_content_stream(
+                model=model,
+                contents=contents,
+                config=generate_content_config,
+            ):
+                if chunk.text:
+                    result = chunk.text
+                    if result:
+                        translation += result
+                        
+            results[engine_name].append(translation.replace('\n', ' ').strip())
+                        
+
+    # Prepare sentences for evaluation
+    translated_sentences = {}
+    source_sentences = {}
+    reference_sentences = {}
+    for engine_name, translations in results.items():
+        translated_sentences[engine_name] = []
+        source_sentences[engine_name] = []
+        reference_sentences[engine_name] = []
+         # Print the translations
+        if args.print_trans:
+            print(f"Translations for {engine_name}:")
+        for i, (n, translation) in enumerate(zip(images_paths_en.keys(), translations)):
+            if i >= args.n:
+                break
+            translated_sentences[engine_name].append(translation.lower() if args.lowercase_trans else translation)
+            source_sentences[engine_name].append(mt_eval.get_source()[int(n)].lower() if args.lowercase_source else mt_eval.get_source()[int(n)])
+            reference_sentences[engine_name].append(mt_eval.get_references()[int(n)].lower() if args.lowercase_reference else mt_eval.get_references()[int(n)])
+            if args.print_trans:
+                print(f"Image {i}: {translation}")
+        print()
+
+        if args.save_trans:
+            # Save the translations to a file
+            output_file = os.path.join(args.trans_folder, f"trans_{engine_name}_{source_lang}_{target_lang}.txt")
+            with open(output_file, 'w') as f:
+                for translation in translated_sentences[engine_name]:
+                    f.write(f"{translation}\n")
+            print(f"Translations saved to {output_file}")
+        
+        # Save indices of images
+        with open(os.path.join(args.trans_folder, f"image_indices_{engine_name}_{source_lang}_{target_lang}.txt"), 'w') as f:
+            for i in images_paths_en.keys():
+                f.write(f"{i}\n")
+
+        # Evaluate the results of each model
+        bleu = BLEU(effective_order=True)
+        chrf = CHRF(word_order=2)
+        ter = TER()
+
+        bleu_score = bleu.corpus_score(translated_sentences[engine_name], [reference_sentences[engine_name]]).score
+        chrf_score = chrf.corpus_score(translated_sentences[engine_name], [reference_sentences[engine_name]]).score
+        ter_score = ter.corpus_score(translated_sentences[engine_name], [reference_sentences[engine_name]]).score
+
+        if args.print_results:
+            print(f"Evaluation for {len(translated_sentences[engine_name])} sentences:")
+            print(f"BLEU: {bleu_score:f}")
+            print(f"CHRF: {chrf_score:f}")
+            print(f"TER: {ter_score:f}")
+
+        if args.save_eval:
+            # Save the evaluation results to a file
+            output_file = os.path.join(args.trans_folder, f"eval_results_{source_lang}_{target_lang}.txt")
+            with open(output_file, 'w') as f:
+                f.write(f"BLEU: {bleu_score:f}\n")
+                f.write(f"CHRF: {chrf_score:f}\n")
+                f.write(f"TER: {ter_score:f}\n")
+            print(f"Evaluation results saved to {output_file}")
