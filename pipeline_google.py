@@ -18,13 +18,17 @@ import matplotlib.pyplot as plt
 # Import Google GenAI
 from google import genai
 from google.genai import types
-import base64
+from google.oauth2.service_account import Credentials
 
 # Import the MTEvaluation class from my TFG
 from mt_evaluation import MTEvaluation
 from sacrebleu.metrics.bleu import BLEU
 from sacrebleu.metrics.chrf import CHRF
 from sacrebleu.metrics.ter import TER
+
+# Dotenv variables
+from dotenv import load_dotenv
+load_dotenv()
 
 lang_mapping = {
     "en": "English",
@@ -35,10 +39,19 @@ lang_mapping = {
     "ro": "Romanian",
 }
 
-# Makea list of the number of images to evaluate
-def get_image_numbers(n, file_list, shuf=False):
-    if shuf:
-        shuffle(file_list)
+# Ensure flags to use Vertex AI mode
+os.environ["GOOGLE_GENERATION_USE_VERTEXAI"] = "true"
+os.environ["GOOGLE_CLOUD_PROJECT"] = "erudite-coast-467916-t0"
+os.environ["GOOGLE_CLOUD_LOCATION"] = "global"
+
+# Path environment
+service_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+
+creds = Credentials.from_service_account_file(service_path, scopes=scopes)
+
+# Make a list of the number of images to evaluate
+def get_image_numbers(n, file_list):
     image_numbers = []
     for i, filename in enumerate(file_list):
         if i >= n:
@@ -66,6 +79,8 @@ if __name__ == "__main__":
     parser.add_argument("--corpus_src", type=str, default=None, help="Archivo corpus en idioma origen")
     parser.add_argument("--corpus_tgt", type=str, default=None, help="Archivo corpus en idioma destino")
     parser.add_argument("-n", type=int, default=None, help="Número de imágenes a evaluar")
+    parser.add_argument("--start_index", type=int, default=None, help="Índice de inicio para la selección de imágenes")
+    parser.add_argument("--end_index", type=int, default=None, help="Índice de fin para la selección de imágenes")
     parser.add_argument("--shuffle", action="store_true", help="Mezclar las imágenes antes de la traducción")
     parser.add_argument("--save_trans", action="store_true", help="Guardar traducciones en disco")
     parser.add_argument("--trans_folder", type=str, default="translations", help="Carpeta para guardar traducciones")
@@ -96,12 +111,19 @@ if __name__ == "__main__":
     mt_eval = MTEvaluation(source_lang, target_lang, engines=engines, source=CORPUS_SRC, references=CORPUS_TGT)
     
     # Number the images to evaluate
-    if args.n is None:
+    file_list = os.listdir(IMAGES_SRC)
+    if args.shuffle:
+        shuffle(file_list)
+
+    if args.start_index is not None and args.end_index is not None:
+        file_list = file_list[args.start_index:args.end_index]
+        args.n = len(file_list)
+    elif args.n is None:
         # If no number is specified, use all images in the source directory
-        args.n = len(os.listdir(IMAGES_SRC))
+        args.n = len(file_list)
 
     # If a number is specified, use that number of images
-    numbers = get_image_numbers(args.n, os.listdir(IMAGES_SRC), shuf=args.shuffle)
+    numbers = get_image_numbers(args.n, file_list)
 
     # Get image paths
     images_paths_en = get_image_paths(IMAGES_SRC, numbers)
@@ -114,11 +136,12 @@ if __name__ == "__main__":
     results = {}
     prompt = f"First, extract the {lang_mapping[source_lang].lower()} text from this image. Then, translate the extracted text to {lang_mapping[target_lang]}. Provide only the final {lang_mapping[target_lang]} translation."
     for engine_name, engine in mt_eval.engines.items():
+
         client = genai.Client(
             vertexai=True,
-            api_key=os.environ.get("GOOGLE_API_KEY"),
             project="erudite-coast-467916-t0",
             location="global",
+            credentials=creds,  # Use the credentials from the service account
         )
 
         model = "gemini-2.5-flash-lite"
