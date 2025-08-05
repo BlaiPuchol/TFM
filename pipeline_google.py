@@ -111,11 +111,9 @@ if __name__ == "__main__":
     print(f"Selected {len(images_paths_de)} images from {IMAGES_TGT}")
 
     # Read the images and run OCR on them with tqdm
-    images_en = [images_paths_en[name] for name in images_paths_en.keys()]
-
     total_time = 0
     results = {}
-    prompt = f"First, extract the {lang_mapping[source_lang].lower} text from this image. Then, translate the extracted text to {lang_mapping[target_lang]}. Provide only the final {lang_mapping[target_lang]} translation."
+    prompt = f"First, extract the {lang_mapping[source_lang].lower()} text from this image. Then, translate the extracted text to {lang_mapping[target_lang]}. Provide only the final {lang_mapping[target_lang]} translation."
     for engine_name, engine in mt_eval.engines.items():
         client = genai.Client(
             vertexai=True,
@@ -148,7 +146,17 @@ if __name__ == "__main__":
             thinking_budget=0,
             ),
         )
-        for path in tqdm(images_en, desc="Translating images using the engine"):
+
+        # Open files for saving translations and indices if needed
+        trans_file = None
+        indices_file = None
+        if args.save_trans:
+            output_file = os.path.join(args.trans_folder, f"trans_{engine_name}_{source_lang}_{target_lang}.txt")
+            trans_file = open(output_file, 'w')
+            indices_output_file = os.path.join(args.trans_folder, f"image_indices_{engine_name}_{source_lang}_{target_lang}.txt")
+            indices_file = open(indices_output_file, 'w')
+
+        for n, path in tqdm(images_paths_en.items(), desc="Translating images using the engine"):
             with open(path, "rb") as img_file:
                 img_bytes = img_file.read()
             msg_img = types.Part.from_bytes(
@@ -175,8 +183,20 @@ if __name__ == "__main__":
                     result = chunk.text
                     if result:
                         translation += result
-                        
-            results[engine_name].append(translation.replace('\n', ' ').strip())
+            
+            clean_translation = translation.replace('\n', ' ').strip()
+            results[engine_name].append(clean_translation)
+
+            if args.save_trans:
+                # Save the translation and index to files
+                trans_file.write(f"{clean_translation.lower() if args.lowercase_trans else clean_translation}\n")
+                indices_file.write(f"{n}\n")
+
+        if args.save_trans:
+            trans_file.close()
+            indices_file.close()
+            print(f"Translations saved to {os.path.join(args.trans_folder, f'trans_{engine_name}_{source_lang}_{target_lang}.txt')}")
+            print(f"Image indices saved to {os.path.join(args.trans_folder, f'image_indices_{engine_name}_{source_lang}_{target_lang}.txt')}")
                         
 
     # Prepare sentences for evaluation
@@ -199,19 +219,6 @@ if __name__ == "__main__":
             if args.print_trans:
                 print(f"Image {i}: {translation}")
         print()
-
-        if args.save_trans:
-            # Save the translations to a file
-            output_file = os.path.join(args.trans_folder, f"trans_{engine_name}_{source_lang}_{target_lang}.txt")
-            with open(output_file, 'w') as f:
-                for translation in translated_sentences[engine_name]:
-                    f.write(f"{translation}\n")
-            print(f"Translations saved to {output_file}")
-        
-        # Save indices of images
-        with open(os.path.join(args.trans_folder, f"image_indices_{engine_name}_{source_lang}_{target_lang}.txt"), 'w') as f:
-            for i in images_paths_en.keys():
-                f.write(f"{i}\n")
 
         # Evaluate the results of each model
         bleu = BLEU(effective_order=True)
