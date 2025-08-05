@@ -2,6 +2,7 @@
 
 # Imports
 import argparse
+import time
 from random import shuffle
 import os
 from tqdm import tqdm
@@ -197,15 +198,33 @@ if __name__ == "__main__":
                 ]
             )
             translation = ""
-            for chunk in client.models.generate_content_stream(
-                model=model,
-                contents=contents,
-                config=generate_content_config,
-            ):
-                if chunk.text:
-                    result = chunk.text
-                    if result:
-                        translation += result
+            retries = 5
+            delay = 5  # seconds
+            while retries > 0:
+                try:
+                    translation_stream = client.models.generate_content_stream(
+                        model=model,
+                        contents=contents,
+                        config=generate_content_config,
+                    )
+                    temp_translation = ""
+                    for chunk in translation_stream:
+                        if chunk.text:
+                            result = chunk.text
+                            if result:
+                                temp_translation += result
+                    translation = temp_translation
+                    break  # Success
+                except Exception as e:
+                    print(f"\nAn error occurred for image {n}: {e}")
+                    retries -= 1
+                    if retries > 0:
+                        print(f"Retrying in {delay} seconds... ({retries} retries left)")
+                        time.sleep(delay)
+                        delay *= 2  # Exponential backoff
+                    else:
+                        print(f"Failed to process image {n} after multiple retries.")
+                        translation = "ERROR: FAILED TO TRANSLATE"
             
             clean_translation = translation.replace('\n', ' ').strip()
             results[engine_name].append(clean_translation)
