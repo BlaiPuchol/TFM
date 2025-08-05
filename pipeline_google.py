@@ -2,7 +2,6 @@
 
 # Imports
 import argparse
-import time
 from random import shuffle
 import os
 from tqdm import tqdm
@@ -117,6 +116,7 @@ if __name__ == "__main__":
     for engine_name, engine in mt_eval.engines.items():
         client = genai.Client(
             vertexai=True,
+            api_key=os.environ.get("GOOGLE_API_KEY"),
             project="erudite-coast-467916-t0",
             location="global",
         )
