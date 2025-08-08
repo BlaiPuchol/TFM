@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
     # Engines to evaluate
     engines = {
-        'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
+        'gemini-2.5-flash': 'gemini-2.5-flash',
     }
 
     # Create an instance of the MTEvaluation class
@@ -145,7 +145,7 @@ if __name__ == "__main__":
             credentials=creds,  # Use the credentials from the service account
         )
 
-        model = "gemini-2.5-flash-lite"
+        model = engine
         print(f"Using model: {model}")
         results[engine_name] = []
 
