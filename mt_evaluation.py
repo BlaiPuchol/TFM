@@ -320,6 +320,43 @@ class MTEvaluation:
                     else:
                         self.errors[engine] = "Error"
                     print(ex)
+            elif engine.startswith("gpt") or engine.startswith("GPT"):
+                # GPT models are special cases, we need to use the HuggingFace pipeline
+                translator = pipeline(
+                    "text-generation",
+                    model=self.engines[engine],
+                    trust_remote_code=True,
+                    torch_dtype="auto",
+                    device_map="auto",
+                )
+                assert torch.cuda.is_available(), "CUDA is not available."
+
+                self.mt[engine] = CorpusStatistics(name="mt_" + engine)
+                segments = self.src.segments()
+                self.time[engine] = 0
+                try:
+                    for seg in tqdm(segments, desc=f"Translating ({engine})"):
+                        prompt = (
+                            f"Translate from {self.lang_mapping[self.lng_src]} to {self.lang_mapping[self.lng_tgt]}:\n\n"
+                            f"{self.lang_mapping[self.lng_src]}:{seg}\n\n"
+                            f"{self.lang_mapping[self.lng_tgt]}:"
+                        )
+                        start = time.time()
+                        # Generate output
+                        output = translator([{"role": "user", "content": prompt}], max_new_tokens=50, do_sample=False)[0]['generated_text']
+                        end = time.time()
+                        self.time[engine] += end - start
+                        # Remove the prompt from the output
+                        output = output[0]["generated_text"][len(prompt):].strip()
+                        # HuggingFace pipeline returns the prompt with the generated text, so we need to extract the translation
+                        self.mt[engine].add_segment(output if not lowercase else output.lower())
+                except Exception as ex:
+                    if self.mt[engine].seg_count() == 0:
+                        self.errors[engine] = "Empty translation"
+                    else:
+                        self.errors[engine] = "Error"
+                    print(ex)
+
             else:
                 # Get the HuggingFace pipeline or model name
                 model_info = self.engines[engine]
