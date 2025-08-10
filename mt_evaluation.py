@@ -337,17 +337,17 @@ class MTEvaluation:
                 try:
                     for seg in tqdm(segments, desc=f"Translating ({engine})"):
                         prompt = (
-                            f"Translate from {self.lang_mapping[self.lng_src]} to {self.lang_mapping[self.lng_tgt]}:\n\n"
+                            f"Translate from {self.lang_mapping[self.lng_src]} to {self.lang_mapping[self.lng_tgt]}. Write only the translation without any comment.\n\n"
                             f"{self.lang_mapping[self.lng_src]}:{seg}\n\n"
                             f"{self.lang_mapping[self.lng_tgt]}:"
                         )
                         start = time.time()
                         # Generate output
-                        output = translator([{"role": "user", "content": prompt}], max_new_tokens=50, do_sample=False)[0]['generated_text']
+                        output = translator([{"role": "user", "content": prompt}], max_new_tokens=100, do_sample=False)
                         end = time.time()
                         self.time[engine] += end - start
                         # Remove the prompt from the output
-                        output = output[0]["generated_text"][len(prompt):].strip()
+                        output = output[0]['generated_text'][-1]['content'].strip()
                         # HuggingFace pipeline returns the prompt with the generated text, so we need to extract the translation
                         self.mt[engine].add_segment(output if not lowercase else output.lower())
                 except Exception as ex:
