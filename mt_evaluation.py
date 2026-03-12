@@ -9,7 +9,7 @@ from sacrebleu.metrics.bleu import BLEU
 from sacrebleu.metrics.chrf import CHRF
 from sacrebleu.metrics.ter import TER
 from corpus_statistics import CorpusStatistics
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, GenerationConfig
 from transformers.pipelines import pipeline
 from transformers import M2M100ForConditionalGeneration, M2M100Tokenizer
 from tqdm import tqdm
@@ -206,10 +206,12 @@ class MTEvaluation:
             t[engine] = self.time[engine]
         return t
 
-    def translate(self, engines: Optional[list] = None, lowercase: bool = False, save: bool = False, folder: Optional[str] = None, to_json: bool = False):
+    def translate(self, engines: Optional[list] = None, lowercase: bool = False, save: bool = False, folder: Optional[str] = None, to_json: bool = False, num_shots: int = 0, shots_seed: int = 13):
         """
         Translate the source file with the specified engines (LLMs) and save the results in a JSON or text file or return a json object.
         Engines should be a dict with engine names as keys and HuggingFace model names or callable pipelines as values.
+        num_shots: number of in-context examples to prepend to each prompt (requires reference translations to be set).
+        shots_seed: random seed for selecting in-context examples.
         """
 
         e = []
@@ -235,51 +237,73 @@ class MTEvaluation:
             if engine.startswith("llama") or engine.startswith("LLaMA"):
                 # LLaMA is a special case
                 model_info = self.engines[engine]
-                tokenizer = AutoTokenizer.from_pretrained(model_info, use_fast=True)
+                assert torch.cuda.is_available(), "CUDA is not available."
+                tokenizer = AutoTokenizer.from_pretrained(
+                    model_info,
+                    use_fast=True,
+                    padding_side='left',
+                )
+                if tokenizer.pad_token is None:
+                    tokenizer.pad_token = tokenizer.eos_token
+                quantization_config = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_quant_type="nf4",
+                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_compute_dtype=torch.bfloat16,
+                )
                 model = AutoModelForCausalLM.from_pretrained(
                     model_info,
+                    quantization_config=quantization_config,
                     device_map="auto",
-                    torch_dtype="auto"
                 )
-                assert torch.cuda.is_available(), "CUDA is not available."
-                # Create a translation pipeline
-                translator = pipeline("text-generation", model=model, tokenizer=tokenizer)
+                generation_config = GenerationConfig.from_pretrained(model_info)
 
                 self.mt[engine] = CorpusStatistics(name="mt_" + engine)
                 segments = self.src.segments()
                 self.time[engine] = 0
+                task_prefix = f"Translate from {self.lng_src} to {self.lng_tgt}:\n"
+                # Build in-context examples (shots)
+                shots = ""
+                if num_shots > 0 and hasattr(self, 'ref'):
+                    rng = random.Random(shots_seed)
+                    all_pairs = list(zip(self.src.segments(), self.ref.segments()))
+                    shot_pairs = rng.sample(all_pairs, min(num_shots, len(all_pairs)))
+                    for src_ex, tgt_ex in shot_pairs:
+                        shots += f"{self.lng_src}: {src_ex} = {self.lng_tgt}: {tgt_ex}\n"
+                batch_size = 32
                 try:
-                    for seg in tqdm(segments, desc=f"Translating ({engine})"):
-                        prompt = (
-                            f'Translate the following sentence into {self.lang_mapping[self.lng_tgt]}. '
-                            'Respond only in this JSON format: {"translation": "<translated text>"}\n\n'
-                            f'{self.lang_mapping[self.lng_src]}: "{seg}"\n'
-                            f'{self.lang_mapping[self.lng_tgt]} (JSON):'
-                        )
-
+                    for batch_start in tqdm(range(0, len(segments), batch_size), desc=f"Translating ({engine})"):
+                        batch_segs = segments[batch_start:batch_start + batch_size]
+                        prompts = [f"{task_prefix}{shots}{self.lng_src}: {seg} = {self.lng_tgt}: " for seg in batch_segs]
+                        inputs = tokenizer(
+                            prompts,
+                            padding="longest",
+                            truncation=True,
+                            max_length=128,
+                            return_attention_mask=True,
+                            return_tensors="pt",
+                        ).to(model.device)
                         start = time.time()
-                        # Generate output
-                        output = translator(prompt, max_new_tokens=100, do_sample=False)[0]['generated_text']
+                        with torch.no_grad():
+                            output_ids = model.generate(
+                                generation_config=generation_config,
+                                input_ids=inputs["input_ids"],
+                                attention_mask=inputs["attention_mask"],
+                                max_new_tokens=128,
+                                num_beams=1,
+                                do_sample=False,
+                            )
                         end = time.time()
                         self.time[engine] += end - start
-
-                        # Remove the prompt if it’s echoed back
-                        generated = output[len(prompt):].strip()
-
-                        # Extract JSON from the output (fallback regex in case it's noisy)
-                        try:
-                            match = re.search(r"\{.*?\}", generated, re.DOTALL)
-                            if not match:
-                                raise ValueError("No JSON found")
-                            json_str = match.group(0)
-                            data = json.loads(json_str)
-                            translation = data["translation"].strip()
-                        except Exception as e:
-                            print(f"[Warning] Failed to parse JSON: {e}")
-                            # fallback to raw text but removing any {}
-                            translation = generated.split('\n')[0].split('}')[0].strip().replace('{', '').replace('}', '')
-
-                        self.mt[engine].add_segment(translation.lower() if lowercase else translation)
+                        for input_ids, out_ids in zip(inputs["input_ids"].tolist(), output_ids.cpu().tolist()):
+                            new_tokens = out_ids[len(input_ids):]
+                            generated = tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+                            pred_match = re.search(r'^.*\n', generated)
+                            if pred_match is not None:
+                                translation = pred_match.group()[:-1].strip()
+                            else:
+                                translation = generated.split('\n')[0].strip() if generated else ""
+                            self.mt[engine].add_segment(translation.lower() if lowercase else translation)
 
                 except Exception as ex:
                     if self.mt[engine].seg_count() == 0:

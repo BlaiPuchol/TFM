@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
     # Engines to evaluate
     engines = {
-        'gemini-2.5-flash': 'gemini-2.5-flash',
+        'gemini-2.5-pro': 'gemini-2.5-flash',
     }
 
     # Create an instance of the MTEvaluation class

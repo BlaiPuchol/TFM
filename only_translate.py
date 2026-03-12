@@ -1,122 +1,97 @@
-# Evaluación de traducción de imágenes
+# MT translation and evaluation using OCR CSV files
 
-# Imports
 import argparse
-from random import shuffle
+import csv
+import json
 import os
 
-# Hugging Face login
-
-from huggingface_hub import login
-
-# Login to Hugging Face Hub
-# login()
-
-# Import the MTEvaluation class from my TFG
 from mt_evaluation import MTEvaluation
-
-# Makea list of the number of images to evaluate
-def get_image_numbers(n, file_list, shuf=False):
-    if shuf:
-        shuffle(file_list)
-    image_numbers = []
-    for i, filename in enumerate(file_list):
-        if i >= n:
-            break
-        if filename.endswith('.jpg') or filename.endswith('.png'):
-            image_numbers.append(filename.split('.')[0])
-    return image_numbers
-
-# Make a list of image paths and save it in a dict, where the keys are the image names and the values are the image paths
-def get_image_paths(image_dir, numbers):
-    image_paths = {}
-    file_list = os.listdir(image_dir)
-    for filename in file_list:
-        if filename.split('.')[0] in numbers:
-            image_paths[filename.split('.')[0]] = os.path.join(image_dir, filename)
-    return image_paths
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Evaluación de traducción de imágenes con OCR y MT.")
-    parser.add_argument("--src_lang", type=str, default=None, help="Idioma de origen (source language)")
-    parser.add_argument("--tgt_lang", type=str, default=None, help="Idioma de destino (target language)")
-    parser.add_argument("--corpus_src", type=str, default=None, help="Archivo corpus en idioma origen")
-    parser.add_argument("--corpus_tgt", type=str, default=None, help="Archivo corpus en idioma destino")
-    parser.add_argument("-n", type=int, default=None, help="Número de imágenes a evaluar")
-    parser.add_argument("--save_trans", action="store_true", help="Guardar traducciones en disco")
-    parser.add_argument("--trans_folder", type=str, default="translations", help="Carpeta para guardar traducciones")
-    parser.add_argument("--save_eval", action="store_true", help="Guardar resultados de evaluación")
-    parser.add_argument("--print_trans", action="store_true", help="Imprimir traducciones en consola")
-    parser.add_argument("--print_results", action="store_true", help="Imprimir resultados de evaluación")
-    parser.add_argument("--lowercase_source", action="store_true", help="Pasar a minúsculas las frases del archivo fuente")
-    parser.add_argument("--lowercase_trans", action="store_true", help="Pasar a minúsculas las frases del archivo de traducción")
-    parser.add_argument("--lowercase_reference", action="store_true", help="Pasar a minúsculas las frases del archivo referencia")
+    parser = argparse.ArgumentParser(description="MT translation and evaluation using OCR CSV files.")
+    parser.add_argument("--src_lang", type=str, required=True, help="Source language code (e.g. de, en, fr)")
+    parser.add_argument("--tgt_lang", type=str, required=True, help="Target language code (e.g. de, en, fr)")
+    parser.add_argument("--ocr_csv", type=str, required=True, help="CSV file with image_id and transcription columns")
+    parser.add_argument("--ref_file", type=str, required=True, help="Reference file (one sentence per line); image_id is used as 0-based line index")
+    parser.add_argument("-n", type=int, default=None, help="Maximum number of sentences to translate")
+    parser.add_argument("--save_trans", action="store_true", help="Save translations to disk")
+    parser.add_argument("--trans_folder", type=str, default="translations", help="Folder to save translations")
+    parser.add_argument("--save_eval", action="store_true", help="Save evaluation results to disk")
+    parser.add_argument("--eval_folder", type=str, default="evaluations", help="Folder to save evaluation results")
+    parser.add_argument("--print_trans", action="store_true", help="Print translations to console")
+    parser.add_argument("--print_results", action="store_true", help="Print evaluation results to console")
+    parser.add_argument("--lowercase", action="store_true", help="Lowercase source, reference, and translations")
+    parser.add_argument("--num_shots", type=int, default=0, help="Number of in-context examples for prompting (0 = zero-shot)")
+    parser.add_argument("--shots_seed", type=int, default=13, help="Random seed for selecting in-context examples")
     args = parser.parse_args()
 
-    # Set language pairs
-    source_lang = args.src_lang
-    target_lang = args.tgt_lang
+    # Load reference file (one sentence per line, 0-based indexed by image_id)
+    with open(args.ref_file, 'r', encoding='utf-8') as f:
+        all_references = [line.rstrip('\n') for line in f]
 
-    # Dataset directories and files
-    CORPUS_SRC = args.corpus_src
-    CORPUS_TGT = args.corpus_tgt
+    # Load OCR CSV
+    source_sentences = []
+    reference_sentences = []
+    image_ids = []
+
+    with open(args.ocr_csv, newline='', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if args.n is not None and len(source_sentences) >= args.n:
+                break
+            img_id = int(row['image_id'])
+            transcription = row['transcription'].strip()
+            if not transcription:
+                continue
+            if img_id >= len(all_references):
+                print(f"Warning: image_id {img_id} out of range ({len(all_references)} lines), skipping")
+                continue
+            ref = all_references[img_id]
+            image_ids.append(img_id)
+            source_sentences.append(transcription.lower() if args.lowercase else transcription)
+            reference_sentences.append(ref.lower() if args.lowercase else ref)
+
+    print(f"Loaded {len(source_sentences)} sentences from {args.ocr_csv}")
 
     # Engines to evaluate
     engines = {
-        'euroLLM': 'utter-project/EuroLLM-9B',
-        'LLaMA': 'meta-llama/Llama-3.2-1B',
-        'M2M100': 'facebook/m2m100_1.2B',
+        'LLaMA-3.2-1B': 'meta-llama/Llama-3.2-1B',
+        'LLaMA-3.2-3B': 'meta-llama/Llama-3.2-3B',
+        'LLaMA-3.2-8B': 'meta-llama/Llama-3.2-8B',
+        'LLaMA-3.2-1B-Instruct': 'meta-llama/Llama-3.2-1B-Instruct',
+        'LLaMA-3.2-3B-Instruct': 'meta-llama/Llama-3.2-3B-Instruct',
+        'LLaMA-3.2-8B-Instruct': 'meta-llama/Llama-3.2-8B-Instruct',
     }
 
-    # Create an instance of the MTEvaluation class
-    mt_eval = MTEvaluation(source_lang, target_lang, engines=engines, source=CORPUS_SRC, references=CORPUS_TGT)
-
-    # Read sentences from input file
-    source_sentences = []
-    reference_sentences = []
-    image_numbers = []
-
-    with open(CORPUS_SRC, 'r', encoding='utf-8') as f:
-        for line in f:
-            if args.n is not None and len(source_sentences) >= args.n:
-                break
-            line = line.strip()
-            if not line:
-                continue
-            
-            try:
-                # Format: "Image {n}:\tsome text"
-                header, sentence = line.split(':\t', 1)
-                img_num_str = header.split(' ')[1]
-                image_numbers.append(img_num_str)
-                if args.lowercase_source:
-                    sentence = sentence.lower()
-                source_sentences.append(sentence)
-                ref_sentence = mt_eval.get_references()[int(img_num_str)]
-                if args.lowercase_reference:
-                    ref_sentence = ref_sentence.lower()
-                reference_sentences.append(ref_sentence)
-            except (ValueError, IndexError) as e:
-                print(f"Skipping malformed line: {line}")
-                continue
-
-    print(f"Read {len(source_sentences)} sentences from {CORPUS_SRC}")
-
-    # Set new source and reference sentences for the MTEvaluation class
+    direction = f"{args.src_lang}_{args.tgt_lang}"
+    mt_eval = MTEvaluation(
+        args.src_lang, args.tgt_lang,
+        engines=engines,
+        dataset=f"ocr_onnxtr_{direction}",
+    )
     mt_eval.set_source_from_list(source_sentences)
     mt_eval.set_references_from_list(reference_sentences)
 
-    # Translate the source sentences using the engines specified in the MTEvaluation class
-    mt_eval.translate(save=args.save_trans, folder=args.trans_folder, lowercase=args.lowercase_trans)
+    # Translate
+    mt_eval.translate(
+        save=args.save_trans,
+        folder=args.trans_folder,
+        lowercase=args.lowercase,
+        num_shots=args.num_shots,
+        shots_seed=args.shots_seed,
+    )
 
-    # Print the translations
-    if args.print_trans:    
-        for engine, translations in mt_eval.mt.items():
-            print(f"Translations for {engine}:")
-            for i, translation in zip(image_numbers, translations.segments()):
-                print(f"Image {i}: {translation}")
-            print()
+    # Print translations
+    if args.print_trans:
+        for engine, corpus in mt_eval.mt.items():
+            print(f"\nTranslations for {engine}:")
+            for img_id, translation in zip(image_ids, corpus.segments()):
+                print(f"  Image {img_id}: {translation}")
 
-    # Evaluate the results of each model
-    mt_eval.corpus_evaluate(to_json=False, save=args.save_eval, print_results=args.print_results)
+    # Evaluate and optionally save full report
+    mt_eval.full_report(save=args.save_eval, folder=args.eval_folder, to_json=True)
+
+    # Print corpus-level results if requested
+    if args.print_results:
+        mt_eval.corpus_evaluate(save=False, to_json=False, print_results=True)
