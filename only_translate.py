@@ -58,10 +58,10 @@ if __name__ == "__main__":
     engines = {
         'LLaMA-3.2-1B': 'meta-llama/Llama-3.2-1B',
         'LLaMA-3.2-3B': 'meta-llama/Llama-3.2-3B',
-        'LLaMA-3.2-8B': 'meta-llama/Llama-3.2-8B',
+        'LLaMA-3.1-8B': 'meta-llama/Llama-3.1-8B',
         'LLaMA-3.2-1B-Instruct': 'meta-llama/Llama-3.2-1B-Instruct',
         'LLaMA-3.2-3B-Instruct': 'meta-llama/Llama-3.2-3B-Instruct',
-        'LLaMA-3.2-8B-Instruct': 'meta-llama/Llama-3.2-8B-Instruct',
+        'LLaMA-3.1-8B-Instruct': 'meta-llama/Llama-3.1-8B-Instruct',
     }
 
     direction = f"{args.src_lang}_{args.tgt_lang}"

@@ -16,3 +16,4 @@ sacrebleu>=2.4.0
 
 # Utilities
 tqdm>=4.66.0
+nltk
