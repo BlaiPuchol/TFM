@@ -1,12 +1,20 @@
 #!/bin/bash
+#SBATCH -p docencia                  # Cola (partición)
+#SBATCH --gres=shard:4             # --- 6 GPUs logicas ---
+#SBATCH --cpus-per-task=12        # 8 CPUs (4 por GPU)
+#SBATCH --mem=64G                # 64GB de RAM
+#SBATCH --job-name=translate   # ¡Nuevo nombre de trabajo!
+#SBATCH -o translate_salida_%j.log     # ¡Nuevos logs!
+#SBATCH -e translate_error_%j.log      # ¡Nuevos logs!
+
 # Translate all 4 directions using OCR CSV files and IWSLT references
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OCR_DIR="/home/blai/TFM/ocr/test"
-IWSLT_DE_EN="/home/blai/TFM/datasets/IWSLT/iwslt14.de-en"
-IWSLT_FR_EN="/home/blai/TFM/datasets/IWSLT/iwslt17.fr-en"
+OCR_DIR="${SCRIPT_DIR}/ocr/test"
+IWSLT_DE_EN="${SCRIPT_DIR}/datasets/IWSLT/iwslt14.de-en"
+IWSLT_FR_EN="${SCRIPT_DIR}/datasets/IWSLT/iwslt17.fr-en"
 TRANS_FOLDER="${SCRIPT_DIR}/translations"
 EVAL_FOLDER="${SCRIPT_DIR}/evaluations"
 
