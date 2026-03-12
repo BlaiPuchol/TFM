@@ -21,7 +21,7 @@ EVAL_FOLDER="${SCRIPT_DIR}/evaluations_gold"
 cd "$SCRIPT_DIR"
 
 # Optional: pass --num_shots N as argument to the shell script
-NUM_SHOTS=0
+NUM_SHOTS=1
 
 echo "=============================="
 echo " Translation - all directions"
