@@ -13,8 +13,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OCR_DIR="${SCRIPT_DIR}/ocr/test"
-IWSLT_DE_EN="${SCRIPT_DIR}/datasets/IWSLT/iwslt14.de-en"
-IWSLT_FR_EN="${SCRIPT_DIR}/datasets/IWSLT/iwslt17.fr-en"
+IWSLT_DE_EN="${SCRIPT_DIR}/IWSLT/iwslt14.de-en"
+IWSLT_FR_EN="${SCRIPT_DIR}/IWSLT/iwslt17.fr-en"
 TRANS_FOLDER="${SCRIPT_DIR}/translations"
 EVAL_FOLDER="${SCRIPT_DIR}/evaluations"
 
