@@ -30,7 +30,7 @@ echo "=============================="
 
 echo ""
 echo "=== de -> en ==="
-python only_translate.py \
+python TFM/only_translate.py \
     --src_lang de --tgt_lang en \
     --ocr_csv "${OCR_DIR}/ocr_results_onnxtr_de_en.csv" \
     --ref_file "${IWSLT_DE_EN}/test.en" \
@@ -41,7 +41,7 @@ python only_translate.py \
 
 echo ""
 echo "=== en -> de ==="
-python only_translate.py \
+python TFM/only_translate.py \
     --src_lang en --tgt_lang de \
     --ocr_csv "${OCR_DIR}/ocr_results_onnxtr_en_de.csv" \
     --ref_file "${IWSLT_DE_EN}/test.de" \
@@ -52,7 +52,7 @@ python only_translate.py \
 
 echo ""
 echo "=== en -> fr ==="
-python only_translate.py \
+python TFM/only_translate.py \
     --src_lang en --tgt_lang fr \
     --ocr_csv "${OCR_DIR}/ocr_results_onnxtr_en_fr.csv" \
     --ref_file "${IWSLT_FR_EN}/test.fr" \
@@ -63,7 +63,7 @@ python only_translate.py \
 
 echo ""
 echo "=== fr -> en ==="
-python only_translate.py \
+python TFM/only_translate.py \
     --src_lang fr --tgt_lang en \
     --ocr_csv "${OCR_DIR}/ocr_results_onnxtr_fr_en.csv" \
     --ref_file "${IWSLT_FR_EN}/test.en" \
