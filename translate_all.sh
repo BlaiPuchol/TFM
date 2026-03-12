@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -p docencia                  # Cola (partición)
-#SBATCH --gres=shard:4             # --- 6 GPUs logicas ---
+#SBATCH --gres=shard:6             # --- 6 GPUs logicas ---
 #SBATCH --cpus-per-task=12        # 8 CPUs (4 por GPU)
 #SBATCH --mem=64G                # 64GB de RAM
 #SBATCH --job-name=translate   # ¡Nuevo nombre de trabajo!
@@ -21,7 +21,7 @@ EVAL_FOLDER="${SCRIPT_DIR}/evaluations"
 cd "$SCRIPT_DIR"
 
 # Optional: pass --num_shots N as argument to the shell script
-NUM_SHOTS=1
+NUM_SHOTS=0
 
 echo "=============================="
 echo " Translation - all directions"

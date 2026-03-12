@@ -74,18 +74,9 @@ if __name__ == "__main__":
 
     # Engines to evaluate
     engines = {
-        'LLaMA-3.2-1B': 'meta-llama/Llama-3.2-1B',
-        'LLaMA-3.2-3B': 'meta-llama/Llama-3.2-3B',
-        'LLaMA-3.1-8B': 'meta-llama/Llama-3.1-8B',
-        'LLaMA-3.2-1B-Instruct': 'meta-llama/Llama-3.2-1B-Instruct',
-        'LLaMA-3.2-3B-Instruct': 'meta-llama/Llama-3.2-3B-Instruct',
-        'LLaMA-3.1-8B-Instruct': 'meta-llama/Llama-3.1-8B-Instruct',
-        'M2M100': 'facebook/m2m100_1.2B',
-        'euroLLM-1.7B': 'utter-project/EuroLLM-1.7B',
-        'euroLLM-9B-2512': 'utter-project/EuroLLM-9B-2512',
+        'EuroLLM-9B-2512': 'utter-project/EuroLLM-9B-2512',
         'EuroLLM-22B-2512': 'utter-project/EuroLLM-22B-2512',
-        'euroLLM-1.7B-Instruct': 'utter-project/EuroLLM-1.7B-Instruct',
-        'euroLLM-9B-2512-Instruct': 'utter-project/EuroLLM-9B-2512-Instruct',
+        'EuroLLM-9B-2512-Instruct': 'utter-project/EuroLLM-9B-2512-Instruct',
         'EuroLLM-22B-2512-Instruct': 'utter-project/EuroLLM-22B-2512-Instruct',
     }
 
