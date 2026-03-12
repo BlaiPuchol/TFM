@@ -62,6 +62,13 @@ if __name__ == "__main__":
         'LLaMA-3.2-1B-Instruct': 'meta-llama/Llama-3.2-1B-Instruct',
         'LLaMA-3.2-3B-Instruct': 'meta-llama/Llama-3.2-3B-Instruct',
         'LLaMA-3.1-8B-Instruct': 'meta-llama/Llama-3.1-8B-Instruct',
+        'M2M100': 'facebook/m2m100_1.2B',
+        'euroLLM-1.7B': 'utter-project/EuroLLM-1.7B',
+        'euroLLM-9B-2512': 'utter-project/EuroLLM-9B-2512',
+        'EuroLLM-22B-2512': 'utter-project/EuroLLM-22B-2512',
+        'euroLLM-1.7B-Instruct': 'utter-project/EuroLLM-1.7B-Instruct',
+        'euroLLM-9B-2512-Instruct': 'utter-project/EuroLLM-9B-2512-Instruct',
+        'EuroLLM-22B-2512-Instruct': 'utter-project/EuroLLM-22B-2512-Instruct',
     }
 
     direction = f"{args.src_lang}_{args.tgt_lang}"
