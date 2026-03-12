@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -p docencia                  # Cola (partición)
-#SBATCH --gres=shard:4             # --- 6 GPUs logicas ---
+#SBATCH --gres=shard:6            # --- 6 GPUs logicas ---
 #SBATCH --cpus-per-task=12        # 8 CPUs (4 por GPU)
-#SBATCH --mem=64G                # 64GB de RAM
+#SBATCH --mem=120G                # 64GB de RAM
 #SBATCH --job-name=translate   # ¡Nuevo nombre de trabajo!
 #SBATCH -o translate_salida_%j.log     # ¡Nuevos logs!
 #SBATCH -e translate_error_%j.log      # ¡Nuevos logs!
@@ -32,8 +32,9 @@ echo ""
 echo "=== de -> en ==="
 python TFM/only_translate.py \
     --src_lang de --tgt_lang en \
-    --ocr_csv "${IWSLT_DE_EN}/test.de" \
+    --src_file "${IWSLT_DE_EN}/test.de" \
     --ref_file "${IWSLT_DE_EN}/test.en" \
+    --gold \
     --save_trans --trans_folder "${TRANS_FOLDER}" \
     --save_eval  --eval_folder  "${EVAL_FOLDER}" \
     --print_results \
@@ -43,8 +44,9 @@ echo ""
 echo "=== en -> de ==="
 python TFM/only_translate.py \
     --src_lang en --tgt_lang de \
-    --ocr_csv "${IWSLT_DE_EN}/test.en" \
+    --src_file "${IWSLT_DE_EN}/test.en" \
     --ref_file "${IWSLT_DE_EN}/test.de" \
+    --gold \
     --save_trans --trans_folder "${TRANS_FOLDER}" \
     --save_eval  --eval_folder  "${EVAL_FOLDER}" \
     --print_results \
@@ -54,8 +56,9 @@ echo ""
 echo "=== en -> fr ==="
 python TFM/only_translate.py \
     --src_lang en --tgt_lang fr \
-    --ocr_csv "${IWSLT_FR_EN}/test.en" \
+    --src_file "${IWSLT_FR_EN}/test.en" \
     --ref_file "${IWSLT_FR_EN}/test.fr" \
+    --gold \
     --save_trans --trans_folder "${TRANS_FOLDER}" \
     --save_eval  --eval_folder  "${EVAL_FOLDER}" \
     --print_results \
@@ -65,8 +68,9 @@ echo ""
 echo "=== fr -> en ==="
 python TFM/only_translate.py \
     --src_lang fr --tgt_lang en \
-    --ocr_csv "${IWSLT_FR_EN}/test.fr" \
+    --src_file "${IWSLT_FR_EN}/test.fr" \
     --ref_file "${IWSLT_FR_EN}/test.en" \
+    --gold \
     --save_trans --trans_folder "${TRANS_FOLDER}" \
     --save_eval  --eval_folder  "${EVAL_FOLDER}" \
     --print_results \

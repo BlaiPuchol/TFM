@@ -9,11 +9,12 @@ from mt_evaluation import MTEvaluation
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="MT translation and evaluation using OCR CSV files.")
+    parser = argparse.ArgumentParser(description="MT translation and evaluation using OCR CSV files or gold-aligned text files.")
     parser.add_argument("--src_lang", type=str, required=True, help="Source language code (e.g. de, en, fr)")
     parser.add_argument("--tgt_lang", type=str, required=True, help="Target language code (e.g. de, en, fr)")
-    parser.add_argument("--ocr_csv", type=str, required=True, help="CSV file with image_id and transcription columns")
-    parser.add_argument("--ref_file", type=str, required=True, help="Reference file (one sentence per line); image_id is used as 0-based line index")
+    parser.add_argument("--ocr_csv", type=str, help="CSV file with image_id and transcription columns (for OCR mode)")
+    parser.add_argument("--src_file", type=str, help="Plain text file with source sentences, one per line (for gold mode)")
+    parser.add_argument("--ref_file", type=str, required=True, help="Reference file (one sentence per line)")
     parser.add_argument("-n", type=int, default=None, help="Maximum number of sentences to translate")
     parser.add_argument("--save_trans", action="store_true", help="Save translations to disk")
     parser.add_argument("--trans_folder", type=str, default="translations", help="Folder to save translations")
@@ -24,35 +25,52 @@ if __name__ == "__main__":
     parser.add_argument("--lowercase", action="store_true", help="Lowercase source, reference, and translations")
     parser.add_argument("--num_shots", type=int, default=0, help="Number of in-context examples for prompting (0 = zero-shot)")
     parser.add_argument("--shots_seed", type=int, default=13, help="Random seed for selecting in-context examples")
+    parser.add_argument("--gold", action="store_true", help="Use gold-aligned plain text files as source (no image_id alignment)")
     args = parser.parse_args()
 
-    # Load reference file (one sentence per line, 0-based indexed by image_id)
+    # Load reference file (one sentence per line)
     with open(args.ref_file, 'r', encoding='utf-8') as f:
         all_references = [line.rstrip('\n') for line in f]
 
-    # Load OCR CSV
     source_sentences = []
     reference_sentences = []
     image_ids = []
 
-    with open(args.ocr_csv, newline='', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if args.n is not None and len(source_sentences) >= args.n:
-                break
-            img_id = int(row['image_id'])
-            transcription = row['transcription'].strip()
-            if not transcription:
-                continue
-            if img_id >= len(all_references):
-                print(f"Warning: image_id {img_id} out of range ({len(all_references)} lines), skipping")
-                continue
-            ref = all_references[img_id]
-            image_ids.append(img_id)
-            source_sentences.append(transcription.lower() if args.lowercase else transcription)
-            reference_sentences.append(ref.lower() if args.lowercase else ref)
-
-    print(f"Loaded {len(source_sentences)} sentences from {args.ocr_csv}")
+    if args.gold:
+        # Gold mode: src_file and ref_file are aligned, use line index
+        if not args.src_file:
+            raise ValueError("--src_file must be provided when using --gold mode.")
+        with open(args.src_file, 'r', encoding='utf-8') as f:
+            for idx, line in enumerate(f):
+                if args.n is not None and len(source_sentences) >= args.n:
+                    break
+                src = line.rstrip('\n')
+                ref = all_references[idx] if idx < len(all_references) else ""
+                image_ids.append(idx)
+                source_sentences.append(src.lower() if args.lowercase else src)
+                reference_sentences.append(ref.lower() if args.lowercase else ref)
+        print(f"Loaded {len(source_sentences)} sentences from {args.src_file} (gold mode)")
+    else:
+        # OCR mode: use CSV with image_id
+        if not args.ocr_csv:
+            raise ValueError("--ocr_csv must be provided unless using --gold mode.")
+        with open(args.ocr_csv, newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if args.n is not None and len(source_sentences) >= args.n:
+                    break
+                img_id = int(row['image_id'])
+                transcription = row['transcription'].strip()
+                if not transcription:
+                    continue
+                if img_id >= len(all_references):
+                    print(f"Warning: image_id {img_id} out of range ({len(all_references)} lines), skipping")
+                    continue
+                ref = all_references[img_id]
+                image_ids.append(img_id)
+                source_sentences.append(transcription.lower() if args.lowercase else transcription)
+                reference_sentences.append(ref.lower() if args.lowercase else ref)
+        print(f"Loaded {len(source_sentences)} sentences from {args.ocr_csv} (ocr mode)")
 
     # Engines to evaluate
     engines = {
