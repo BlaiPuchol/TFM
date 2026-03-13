@@ -80,11 +80,8 @@ if __name__ == "__main__":
         'LLaMA-3.2-1B-Instruct': 'meta-llama/Llama-3.2-1B-Instruct',
         'LLaMA-3.2-3B-Instruct': 'meta-llama/Llama-3.2-3B-Instruct',
         'LLaMA-3.1-8B-Instruct': 'meta-llama/Llama-3.1-8B-Instruct',
-        'M2M100': 'facebook/m2m100_1.2B',
-        'EuroLLM-1.7B': 'utter-project/EuroLLM-1.7B',
         'EuroLLM-9B-2512': 'utter-project/EuroLLM-9B-2512',
         'EuroLLM-22B-2512': 'utter-project/EuroLLM-22B-2512',
-        'EuroLLM-1.7B-Instruct': 'utter-project/EuroLLM-1.7B-Instruct',
         'EuroLLM-9B-2512-Instruct': 'utter-project/EuroLLM-9B-2512-Instruct',
         'EuroLLM-22B-2512-Instruct': 'utter-project/EuroLLM-22B-2512-Instruct',
     }
@@ -93,7 +90,7 @@ if __name__ == "__main__":
     mt_eval = MTEvaluation(
         args.src_lang, args.tgt_lang,
         engines=engines,
-        dataset=f"ocr_onnxtr_{direction}",
+        dataset=f"trans_{direction}",
     )
     mt_eval.set_source_from_list(source_sentences)
     mt_eval.set_references_from_list(reference_sentences)
