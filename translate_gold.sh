@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -p docencia                  # Cola (partición)
-#SBATCH --gres=gpu:2            # --- 6 GPUs logicas ---
+#SBATCH --gres=shard:6          # --- 6 GPUs logicas ---
 #SBATCH --cpus-per-task=12        # 8 CPUs (4 por GPU)
 #SBATCH --mem=120G                # 64GB de RAM
 #SBATCH --job-name=translate   # ¡Nuevo nombre de trabajo!

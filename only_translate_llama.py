@@ -86,7 +86,7 @@ if __name__ == "__main__":
     mt_eval = MTEvaluation(
         args.src_lang, args.tgt_lang,
         engines=engines,
-        dataset=f"ocr_onnxtr_{direction}",
+        dataset=f"trans_{direction}",
     )
     mt_eval.set_source_from_list(source_sentences)
     mt_eval.set_references_from_list(reference_sentences)

@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -p docencia                  # Cola (partición)
-#SBATCH --gres=shard:6          # --- 6 GPUs logicas ---
+#SBATCH --gres=gpu:2             # --- 6 GPUs logicas ---
 #SBATCH --cpus-per-task=12        # 8 CPUs (4 por GPU)
 #SBATCH --mem=64G                # 64GB de RAM
 #SBATCH --job-name=translate   # ¡Nuevo nombre de trabajo!
@@ -15,8 +15,8 @@ SCRIPT_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 OCR_DIR="${SCRIPT_DIR}/ocr/test"
 IWSLT_DE_EN="${SCRIPT_DIR}/IWSLT/iwslt14.de-en"
 IWSLT_FR_EN="${SCRIPT_DIR}/IWSLT/iwslt17.fr-en"
-TRANS_FOLDER="${SCRIPT_DIR}/translations"
-EVAL_FOLDER="${SCRIPT_DIR}/evaluations"
+TRANS_FOLDER="${SCRIPT_DIR}/translations_eurollm"
+EVAL_FOLDER="${SCRIPT_DIR}/evaluations_eurollm"
 
 cd "$SCRIPT_DIR"
 
@@ -30,7 +30,7 @@ echo "=============================="
 
 echo ""
 echo "=== de -> en ==="
-python TFM/only_translate.py \
+python TFM/only_translate_eurollm.py \
     --src_lang de --tgt_lang en \
     --ocr_csv "${OCR_DIR}/ocr_results_onnxtr_de_en.csv" \
     --ref_file "${IWSLT_DE_EN}/test.en" \
@@ -41,7 +41,7 @@ python TFM/only_translate.py \
 
 echo ""
 echo "=== en -> de ==="
-python TFM/only_translate.py \
+python TFM/only_translate_eurollm.py \
     --src_lang en --tgt_lang de \
     --ocr_csv "${OCR_DIR}/ocr_results_onnxtr_en_de.csv" \
     --ref_file "${IWSLT_DE_EN}/test.de" \
@@ -52,7 +52,7 @@ python TFM/only_translate.py \
 
 echo ""
 echo "=== en -> fr ==="
-python TFM/only_translate.py \
+python TFM/only_translate_eurollm.py \
     --src_lang en --tgt_lang fr \
     --ocr_csv "${OCR_DIR}/ocr_results_onnxtr_en_fr.csv" \
     --ref_file "${IWSLT_FR_EN}/test.fr" \
@@ -63,7 +63,7 @@ python TFM/only_translate.py \
 
 echo ""
 echo "=== fr -> en ==="
-python TFM/only_translate.py \
+python TFM/only_translate_eurollm.py \
     --src_lang fr --tgt_lang en \
     --ocr_csv "${OCR_DIR}/ocr_results_onnxtr_fr_en.csv" \
     --ref_file "${IWSLT_FR_EN}/test.en" \
