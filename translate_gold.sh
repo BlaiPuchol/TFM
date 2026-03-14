@@ -2,7 +2,7 @@
 #SBATCH -p docencia                  # Cola (partición)
 #SBATCH --gres=shard:6          # --- 6 GPUs logicas ---
 #SBATCH --cpus-per-task=12        # 8 CPUs (4 por GPU)
-#SBATCH --mem=120G                # 64GB de RAM
+#SBATCH --mem=64G                # 64GB de RAM
 #SBATCH --job-name=translate   # ¡Nuevo nombre de trabajo!
 #SBATCH -o translate_salida_%j.log     # ¡Nuevos logs!
 #SBATCH -e translate_error_%j.log      # ¡Nuevos logs!

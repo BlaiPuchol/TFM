@@ -76,8 +76,8 @@ if __name__ == "__main__":
     engines = {
         'EuroLLM-9B-2512': 'utter-project/EuroLLM-9B-2512',
         'EuroLLM-22B-2512': 'utter-project/EuroLLM-22B-2512',
-        'EuroLLM-9B-2512-Instruct': 'utter-project/EuroLLM-9B-2512-Instruct',
-        'EuroLLM-22B-2512-Instruct': 'utter-project/EuroLLM-22B-2512-Instruct',
+        'EuroLLM-9B-Instruct-2512': 'utter-project/EuroLLM-9B-Instruct-2512',
+        'EuroLLM-22B-Instruct-2512': 'utter-project/EuroLLM-22B-Instruct-2512',
     }
 
     direction = f"{args.src_lang}_{args.tgt_lang}"
