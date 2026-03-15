@@ -1,5 +1,6 @@
 #!/bin/bash
-#SBATCH -p docencia                  # Cola (partición)
+#SBATCH -p long                  # Cola (partición)
+#SBATCH --time=3-00:00:00          # Tiempo máximo de ejecución (3 días)
 #SBATCH --gres=gpu:2            # --- 6 GPUs logicas ---
 #SBATCH --cpus-per-task=12        # 8 CPUs (4 por GPU)
 #SBATCH --mem=80G                # 64GB de RAM
